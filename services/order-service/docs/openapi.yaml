@@ -1,0 +1,96 @@
+openapi: 3.0.3
+info:
+  title: AV Art Works - Order Service
+  version: 1.0.0
+  description: Cart, checkout (with cross-service stock reservation), orders, and wishlist.
+servers:
+  - url: http://localhost:8083
+paths:
+  /api/v1/cart:
+    get:
+      summary: Get the current user's cart
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Cart } }
+  /api/v1/cart/items:
+    post:
+      summary: Add an item to the cart
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [product_id, quantity]
+              properties:
+                product_id: { type: string, format: uuid }
+                quantity: { type: integer, minimum: 1 }
+      responses: { "200": { description: Updated cart } }
+  /api/v1/cart/items/{id}:
+    patch:
+      summary: Update a cart item quantity
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Updated cart } }
+    delete:
+      summary: Remove a cart item
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Updated cart } }
+  /api/v1/orders:
+    get:
+      summary: List the user's orders
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Orders } }
+    post:
+      summary: Checkout the cart into an order
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                shipping_address:
+                  type: object
+                  properties:
+                    line1: { type: string }
+                    city: { type: string }
+                    state: { type: string }
+                    pincode: { type: string }
+      responses:
+        "201": { description: Order created }
+        "409": { description: Out of stock }
+  /api/v1/orders/{id}:
+    get:
+      summary: Get an order detail
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Order } }
+  /api/v1/wishlist:
+    get:
+      summary: List wishlist
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Wishlist } }
+    post:
+      summary: Add to wishlist
+      security: [{ bearerAuth: [] }]
+      responses: { "201": { description: Added } }
+  /api/v1/admin/orders:
+    get:
+      summary: List all orders (admin)
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Orders } }
+  /api/v1/admin/orders/{id}/status:
+    patch:
+      summary: Update order status (admin)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Updated } }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
