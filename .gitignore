@@ -1,0 +1,26 @@
+# Env / secrets
+.env
+*.env.local
+
+# Go
+/bin/
+*.out
+*.test
+vendor/
+
+# Node / frontend
+node_modules/
+web/dist/
+*.log
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
