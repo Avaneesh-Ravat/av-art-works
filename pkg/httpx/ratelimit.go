@@ -1,8 +1,10 @@
 package httpx
 
 import (
+	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -34,19 +36,15 @@ func RateLimit(rdb *redis.Client, limit int, window time.Duration) func(http.Han
 
 func clientIP(r *http.Request) string {
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if i := indexComma(xff); i >= 0 {
-			return xff[:i]
+		// First IP in the list is the original client.
+		if i := strings.IndexByte(xff, ','); i >= 0 {
+			return strings.TrimSpace(xff[:i])
 		}
-		return xff
+		return strings.TrimSpace(xff)
+	}
+	// Strip the ephemeral port so the key is stable per client.
+	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+		return host
 	}
 	return r.RemoteAddr
-}
-
-func indexComma(s string) int {
-	for i := 0; i < len(s); i++ {
-		if s[i] == ',' {
-			return i
-		}
-	}
-	return -1
 }
