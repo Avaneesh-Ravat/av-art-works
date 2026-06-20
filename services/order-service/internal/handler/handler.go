@@ -64,7 +64,9 @@ func (h *Handler) Routes(corsOrigins []string) http.Handler {
 
 	r.Route("/internal", func(r chi.Router) {
 		r.Use(h.requireInternal)
+		r.Get("/orders/{id}", h.getOrderInternal)
 		r.Post("/orders/{id}/paid", h.markPaid)
+		r.Post("/orders/{id}/refunded", h.markRefunded)
 	})
 	return r
 }
@@ -283,6 +285,27 @@ func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 // ---- Internal handlers ----
+
+func (h *Handler) getOrderInternal(w http.ResponseWriter, r *http.Request) {
+	order, err := h.svc.GetOrderByID(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		httpx.Error(w, http.StatusNotFound, "not_found", "order not found")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, order)
+}
+
+func (h *Handler) markRefunded(w http.ResponseWriter, r *http.Request) {
+	if err := h.svc.UpdateStatus(r.Context(), chi.URLParam(r, "id"), domain.StatusRefunded); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			httpx.Error(w, http.StatusNotFound, "not_found", "order not found")
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, "internal", "could not mark refunded")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, map[string]string{"status": "refunded"})
+}
 
 func (h *Handler) markPaid(w http.ResponseWriter, r *http.Request) {
 	if err := h.svc.MarkPaid(r.Context(), chi.URLParam(r, "id")); err != nil {

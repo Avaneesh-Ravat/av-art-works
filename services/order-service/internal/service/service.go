@@ -179,6 +179,11 @@ func (s *Service) GetOrder(ctx context.Context, userID, id string) (*domain.Orde
 	return s.repo.GetOrder(ctx, userID, id)
 }
 
+// GetOrderByID returns any order detail (admin/internal use).
+func (s *Service) GetOrderByID(ctx context.Context, id string) (*domain.Order, error) {
+	return s.repo.GetOrderByID(ctx, id)
+}
+
 // ListAllOrders returns all orders for admins.
 func (s *Service) ListAllOrders(ctx context.Context, limit, offset int) ([]domain.Order, error) {
 	return s.repo.ListAllOrders(ctx, limit, offset)

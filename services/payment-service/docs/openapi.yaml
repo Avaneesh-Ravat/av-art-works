@@ -1,0 +1,78 @@
+openapi: 3.0.3
+info:
+  title: AV Art Works - Payment Service
+  version: 1.0.0
+  description: >
+    Payment processing via a Razorpay-shaped mock gateway and Cash on Delivery,
+    with signature verification, webhooks, and refunds. Swap the mock for real
+    Razorpay by implementing the same provider interface.
+servers:
+  - url: http://localhost:8084
+paths:
+  /api/v1/payments:
+    post:
+      summary: Initiate a payment for an order
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_id]
+              properties:
+                order_id: { type: string, format: uuid }
+                method: { type: string, enum: [razorpay, cod], default: razorpay }
+      responses:
+        "201": { description: Payment initiated (gateway_order_id + key_id for online) }
+        "409": { description: Order not payable }
+  /api/v1/payments/verify:
+    post:
+      summary: Verify a gateway payment signature and capture
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payment_id, razorpay_payment_id, razorpay_signature]
+              properties:
+                payment_id: { type: string, format: uuid }
+                razorpay_payment_id: { type: string }
+                razorpay_signature: { type: string }
+      responses:
+        "200": { description: Captured }
+        "400": { description: Bad signature }
+  /api/v1/payments/{id}/simulate:
+    post:
+      summary: "MOCK ONLY: produce a valid payment id + signature (simulates the widget)"
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Simulated payment id + signature } }
+  /api/v1/payments/{id}:
+    get:
+      summary: Get payment status
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses: { "200": { description: Payment } }
+  /api/v1/payments/webhook:
+    post:
+      summary: Razorpay webhook (HMAC-verified, unauthenticated)
+      responses:
+        "200": { description: Processed }
+        "400": { description: Bad signature }
+  /api/v1/payments/{id}/refund:
+    post:
+      summary: Refund a captured payment (admin)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
+      responses:
+        "200": { description: Refund processed }
+        "409": { description: Not refundable }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
