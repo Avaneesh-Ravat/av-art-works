@@ -73,23 +73,25 @@ func main() {
 
 // buildStorage selects the object-storage backend from configuration.
 func buildStorage(ctx context.Context, log *slog.Logger) storage.Storage {
+	publicBase := config.Get("MEDIA_PUBLIC_BASE_URL", "/api/v1/media")
 	bucket := config.Get("S3_BUCKET", "")
 	if bucket == "" {
 		log.Info("storage backend: mock (no S3_BUCKET configured)")
-		return storage.NewMock(config.Get("IMAGE_BASE_URL", "http://localhost:8082/uploads"))
+		return storage.NewMock(config.Get("IMAGE_BASE_URL", "http://localhost:8082/uploads"), publicBase)
 	}
 	s3store, err := storage.NewS3(ctx, storage.S3Config{
 		Bucket:         bucket,
 		Region:         config.Get("AWS_REGION", "ap-south-1"),
 		Endpoint:       config.Get("S3_ENDPOINT", ""),
-		PublicBaseURL:  config.Get("S3_PUBLIC_BASE_URL", ""),
+		PublicEndpoint: config.Get("S3_PUBLIC_ENDPOINT", config.Get("S3_ENDPOINT", "")),
+		PublicBaseURL:  config.Get("S3_PUBLIC_BASE_URL", publicBase),
 		ForcePathStyle: config.Get("S3_FORCE_PATH_STYLE", "") == "true",
 		PresignTTL:     config.GetDuration("S3_PRESIGN_TTL", 15*time.Minute),
 	})
 	if err != nil {
 		log.Error("s3 storage init failed; falling back to mock", "err", err)
-		return storage.NewMock(config.Get("IMAGE_BASE_URL", "http://localhost:8082/uploads"))
+		return storage.NewMock(config.Get("IMAGE_BASE_URL", "http://localhost:8082/uploads"), publicBase)
 	}
-	log.Info("storage backend: s3", "bucket", bucket, "endpoint", config.Get("S3_ENDPOINT", "aws"))
+	log.Info("storage backend: s3", "bucket", bucket, "endpoint", config.Get("S3_ENDPOINT", "aws"), "public_base", publicBase)
 	return s3store
 }

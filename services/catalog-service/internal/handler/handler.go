@@ -3,9 +3,11 @@ package handler
 
 import (
 	"errors"
+	"io"
 	"math"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -38,6 +40,9 @@ func (h *Handler) Routes(corsOrigins []string) http.Handler {
 	})
 	httpx.MountSwagger(r, docs.OpenAPISpec)
 
+	// Public media (product images) — path prefix avoids chi wildcard quirks in nested groups.
+	r.HandleFunc("/api/v1/media/*", h.serveMedia)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public reads.
 		r.Get("/products", h.listProducts)
@@ -53,6 +58,7 @@ func (h *Handler) Routes(corsOrigins []string) http.Handler {
 			r.Delete("/products/{id}", h.deleteProduct)
 			r.Patch("/products/{id}/inventory", h.setInventory)
 			r.Post("/products/{id}/images", h.addImage)
+			r.Post("/products/{id}/images/batch", h.addImagesBatch)
 			r.Post("/uploads/presign", h.presign)
 			r.Put("/site-profile", h.updateSiteProfile)
 			r.Patch("/site-profile/about", h.updateAboutSection)
@@ -120,6 +126,10 @@ type imageReq struct {
 	SortOrder int    `json:"sort_order"`
 }
 
+type imagesBatchReq struct {
+	S3Keys []string `json:"s3_keys" validate:"required,min=1,dive,required"`
+}
+
 type presignReq struct {
 	Filename    string `json:"filename" validate:"required"`
 	ContentType string `json:"content_type"`
@@ -131,18 +141,18 @@ type categoryReq struct {
 }
 
 type siteProfileReq struct {
-	SiteName          string                `json:"site_name" validate:"required"`
-	FooterTagline     string                `json:"footer_tagline"`
-	HeroTagline       string                `json:"hero_tagline"`
-	HeroTitle         string                `json:"hero_title" validate:"required"`
-	HeroDescription   string                `json:"hero_description"`
-	Email             string                `json:"email"`
-	Phone             string                `json:"phone"`
-	Location          string                `json:"location"`
-	InstagramURL      string                `json:"instagram_url"`
-	FacebookURL       string                `json:"facebook_url"`
-	PinterestURL      string                `json:"pinterest_url"`
-	Testimonials      []domain.Testimonial  `json:"testimonials"`
+	SiteName        string               `json:"site_name" validate:"required"`
+	FooterTagline   string               `json:"footer_tagline"`
+	HeroTagline     string               `json:"hero_tagline"`
+	HeroTitle       string               `json:"hero_title" validate:"required"`
+	HeroDescription string               `json:"hero_description"`
+	Email           string               `json:"email"`
+	Phone           string               `json:"phone"`
+	Location        string               `json:"location"`
+	InstagramURL    string               `json:"instagram_url"`
+	FacebookURL     string               `json:"facebook_url"`
+	PinterestURL    string               `json:"pinterest_url"`
+	Testimonials    []domain.Testimonial `json:"testimonials"`
 }
 
 type aboutSectionReq struct {
@@ -204,6 +214,26 @@ func (h *Handler) getSiteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, p)
+}
+
+func (h *Handler) serveMedia(w http.ResponseWriter, r *http.Request) {
+	key := strings.TrimPrefix(r.URL.Path, "/api/v1/media/")
+	if key == "" || strings.Contains(key, "..") {
+		httpx.Error(w, http.StatusBadRequest, "invalid_request", "invalid media path")
+		return
+	}
+	obj, err := h.svc.GetMedia(r.Context(), key)
+	if err != nil {
+		httpx.Error(w, http.StatusNotFound, "not_found", "media not found")
+		return
+	}
+	defer obj.Body.Close()
+	if obj.ContentType != "" {
+		w.Header().Set("Content-Type", obj.ContentType)
+	}
+	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.Copy(w, obj.Body)
 }
 
 // ---- Admin handlers ----
@@ -289,6 +319,20 @@ func (h *Handler) addImage(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusCreated, img)
 }
 
+func (h *Handler) addImagesBatch(w http.ResponseWriter, r *http.Request) {
+	var req imagesBatchReq
+	if err := httpx.Decode(r, &req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	images, err := h.svc.AddImages(r.Context(), chi.URLParam(r, "id"), req.S3Keys)
+	if err != nil {
+		httpx.Error(w, http.StatusInternalServerError, "internal", "could not add images")
+		return
+	}
+	httpx.JSON(w, http.StatusCreated, map[string]any{"items": images})
+}
+
 func (h *Handler) updateSiteProfile(w http.ResponseWriter, r *http.Request) {
 	var req siteProfileReq
 	if err := httpx.Decode(r, &req); err != nil {
@@ -296,18 +340,18 @@ func (h *Handler) updateSiteProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p := &domain.SiteProfile{
-		SiteName:         req.SiteName,
-		FooterTagline:    req.FooterTagline,
-		HeroTagline:      req.HeroTagline,
-		HeroTitle:        req.HeroTitle,
-		HeroDescription:  req.HeroDescription,
-		Email:            req.Email,
-		Phone:            req.Phone,
-		Location:         req.Location,
-		InstagramURL:     req.InstagramURL,
-		FacebookURL:      req.FacebookURL,
-		PinterestURL:     req.PinterestURL,
-		Testimonials:     req.Testimonials,
+		SiteName:        req.SiteName,
+		FooterTagline:   req.FooterTagline,
+		HeroTagline:     req.HeroTagline,
+		HeroTitle:       req.HeroTitle,
+		HeroDescription: req.HeroDescription,
+		Email:           req.Email,
+		Phone:           req.Phone,
+		Location:        req.Location,
+		InstagramURL:    req.InstagramURL,
+		FacebookURL:     req.FacebookURL,
+		PinterestURL:    req.PinterestURL,
+		Testimonials:    req.Testimonials,
 	}
 	updated, err := h.svc.UpdateSiteProfile(r.Context(), p)
 	if err != nil {

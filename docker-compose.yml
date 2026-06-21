@@ -88,11 +88,13 @@ services:
       <<: *common-env
       HTTP_ADDR: ":8082"
       IMAGE_BASE_URL: "http://localhost:8082/uploads"
-      # S3 (MinIO locally). The endpoint must be browser-reachable because the
-      # presigned URL host is signed in; presigning itself makes no network call.
+      MEDIA_PUBLIC_BASE_URL: "/api/v1/media"
+      # S3 (MinIO locally). Use the internal Docker hostname for SDK calls; presigned
+      # PUT URLs are rewritten to localhost:9000 so the browser can upload.
       S3_BUCKET: "avartworks"
       AWS_REGION: "us-east-1"
-      S3_ENDPOINT: "http://localhost:9000"
+      S3_ENDPOINT: "http://minio:9000"
+      S3_PUBLIC_ENDPOINT: "http://localhost:9000"
       S3_FORCE_PATH_STYLE: "true"
       AWS_ACCESS_KEY_ID: "minioadmin"
       AWS_SECRET_ACCESS_KEY: "minioadmin"

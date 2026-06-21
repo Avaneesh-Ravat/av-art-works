@@ -4,7 +4,9 @@
 package storage
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"path"
 	"strings"
 	"time"
@@ -23,6 +25,13 @@ type Presign struct {
 type Storage interface {
 	PresignUpload(filename, contentType string) (Presign, error)
 	PublicURL(key string) string
+	GetObject(ctx context.Context, key string) (Object, error)
+}
+
+// Object is a readable stored object.
+type Object struct {
+	Body        io.ReadCloser
+	ContentType string
 }
 
 // NewKey builds a unique, namespaced object key from a filename.
@@ -33,11 +42,17 @@ func NewKey(prefix, filename string) string {
 
 // Mock is a local, no-AWS implementation of Storage.
 type Mock struct {
-	BaseURL string // e.g. http://localhost:8082/uploads
+	BaseURL       string // e.g. http://localhost:8082/uploads
+	PublicBaseURL string // e.g. /api/v1/media
 }
 
 // NewMock builds a mock storage backend.
-func NewMock(baseURL string) *Mock { return &Mock{BaseURL: strings.TrimRight(baseURL, "/")} }
+func NewMock(baseURL, publicBaseURL string) *Mock {
+	return &Mock{
+		BaseURL:       strings.TrimRight(baseURL, "/"),
+		PublicBaseURL: strings.TrimRight(publicBaseURL, "/"),
+	}
+}
 
 // PresignUpload returns a fake upload URL valid for an hour.
 func (m *Mock) PresignUpload(filename, _ string) (Presign, error) {
@@ -58,7 +73,15 @@ func (m *Mock) PublicURL(key string) string {
 	if isAbsoluteURL(key) {
 		return key
 	}
+	if m.PublicBaseURL != "" {
+		return fmt.Sprintf("%s/%s", m.PublicBaseURL, key)
+	}
 	return fmt.Sprintf("%s/%s", m.BaseURL, key)
+}
+
+// GetObject is not supported for the mock backend (objects are not persisted).
+func (m *Mock) GetObject(_ context.Context, key string) (Object, error) {
+	return Object{}, fmt.Errorf("object not found: %s", key)
 }
 
 // isAbsoluteURL reports whether key is already a fully-qualified http(s) URL.

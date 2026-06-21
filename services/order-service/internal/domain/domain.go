@@ -33,15 +33,15 @@ var ValidStatuses = map[string]bool{
 
 // CartItem is a line in the cart, enriched with live product data on read.
 type CartItem struct {
-	ID         string `json:"id"`
-	ProductID  string `json:"product_id"`
-	Title      string `json:"title"`
-	Slug       string `json:"slug,omitempty"`
-	PricePaise int64  `json:"price_paise"`
+	ID         string  `json:"id"`
+	ProductID  string  `json:"product_id"`
+	Title      string  `json:"title"`
+	Slug       string  `json:"slug,omitempty"`
+	PricePaise int64   `json:"price_paise"`
 	Price      float64 `json:"price"`
-	Quantity   int    `json:"quantity"`
-	Stock      int    `json:"stock"`
-	LinePaise  int64  `json:"line_total_paise"`
+	Quantity   int     `json:"quantity"`
+	Stock      int     `json:"stock"`
+	LinePaise  int64   `json:"line_total_paise"`
 }
 
 // Cart is a user's shopping cart.
@@ -87,10 +87,10 @@ type Order struct {
 
 // WishlistItem is a saved product, enriched on read.
 type WishlistItem struct {
-	ProductID  string  `json:"product_id"`
-	Title      string  `json:"title"`
-	Slug       string  `json:"slug,omitempty"`
-	Price      float64 `json:"price"`
-	PricePaise int64   `json:"price_paise"`
+	ProductID  string    `json:"product_id"`
+	Title      string    `json:"title"`
+	Slug       string    `json:"slug,omitempty"`
+	Price      float64   `json:"price"`
+	PricePaise int64     `json:"price_paise"`
 	CreatedAt  time.Time `json:"created_at"`
 }

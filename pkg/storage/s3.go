@@ -18,8 +18,9 @@ import (
 type S3Config struct {
 	Bucket         string        // target bucket
 	Region         string        // AWS region (e.g. ap-south-1)
-	Endpoint       string        // optional custom endpoint (MinIO/localstack)
-	PublicBaseURL  string        // optional CDN/base URL for public reads (e.g. CloudFront)
+	Endpoint       string        // SDK endpoint (e.g. http://minio:9000 in Docker)
+	PublicEndpoint string        // browser-reachable host for presigned PUT URLs (e.g. http://localhost:9000)
+	PublicBaseURL  string        // optional CDN/base URL for public reads (e.g. /api/v1/media)
 	ForcePathStyle bool          // true for MinIO/localstack
 	PresignTTL     time.Duration // presigned URL validity
 }
@@ -71,9 +72,17 @@ func (s *S3) PresignUpload(filename, contentType string) (Presign, error) {
 	}
 	return Presign{
 		Key:       key,
-		UploadURL: req.URL,
+		UploadURL: rewritePresignHost(req.URL, s.cfg.PublicEndpoint, s.cfg.Endpoint),
 		PublicURL: s.PublicURL(key),
 	}, nil
+}
+
+// rewritePresignHost swaps the presigned URL host when a browser-facing endpoint is configured.
+func rewritePresignHost(rawURL, publicEndpoint, sdkEndpoint string) string {
+	if publicEndpoint == "" || sdkEndpoint == "" || publicEndpoint == sdkEndpoint {
+		return rawURL
+	}
+	return strings.Replace(rawURL, strings.TrimRight(sdkEndpoint, "/"), strings.TrimRight(publicEndpoint, "/"), 1)
 }
 
 // PublicURL resolves the publicly served URL for a key. Absolute URLs are
@@ -94,4 +103,23 @@ func (s *S3) PublicURL(key string) string {
 	}
 	// Virtual-hosted-style AWS S3 URL.
 	return fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", s.cfg.Bucket, s.cfg.Region, key)
+}
+
+// GetObject streams an object from the bucket.
+func (s *S3) GetObject(ctx context.Context, key string) (Object, error) {
+	if key == "" || isAbsoluteURL(key) {
+		return Object{}, fmt.Errorf("invalid object key")
+	}
+	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.cfg.Bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return Object{}, err
+	}
+	ct := "application/octet-stream"
+	if out.ContentType != nil && *out.ContentType != "" {
+		ct = *out.ContentType
+	}
+	return Object{Body: out.Body, ContentType: ct}, nil
 }

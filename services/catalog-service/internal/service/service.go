@@ -172,14 +172,44 @@ func (s *Service) PresignUpload(filename, contentType string) (storage.Presign, 
 	return s.store.PresignUpload(filename, contentType)
 }
 
+// GetMedia streams a stored object for public read (via the /media/* route).
+func (s *Service) GetMedia(ctx context.Context, key string) (storage.Object, error) {
+	if isAbsoluteURL(key) {
+		return storage.Object{}, domain.ErrNotFound
+	}
+	return s.store.GetObject(ctx, key)
+}
+
+func isAbsoluteURL(key string) bool {
+	return strings.HasPrefix(key, "http://") || strings.HasPrefix(key, "https://")
+}
+
 // AddImage registers an uploaded image against a product.
 func (s *Service) AddImage(ctx context.Context, productID, s3Key string, sortOrder int) (*domain.Image, error) {
 	img, err := s.repo.AddImage(ctx, productID, s3Key, sortOrder)
 	if err != nil {
 		return nil, err
 	}
+	if p, err := s.repo.GetProductByID(ctx, productID); err == nil {
+		s.rdb.Del(ctx, "catalog:product:"+p.Slug)
+	}
 	img.URL = s.store.PublicURL(img.S3Key)
 	return img, nil
+}
+
+// AddImages registers multiple uploaded images against a product in one transaction.
+func (s *Service) AddImages(ctx context.Context, productID string, keys []string) ([]domain.Image, error) {
+	images, err := s.repo.AddImages(ctx, productID, keys)
+	if err != nil {
+		return nil, err
+	}
+	if p, err := s.repo.GetProductByID(ctx, productID); err == nil {
+		s.rdb.Del(ctx, "catalog:product:"+p.Slug)
+	}
+	for i := range images {
+		images[i].URL = s.store.PublicURL(images[i].S3Key)
+	}
+	return images, nil
 }
 
 // Reserve, Release, Commit proxy inventory operations for the order service.

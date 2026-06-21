@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, ApiError, uploadImage } from "../../lib/api";
+import { api, ApiError, uploadImages } from "../../lib/api";
 import type { Category, Page, Product } from "../../types";
 import { formatINR } from "../../lib/format";
 import { Spinner } from "../../components/Spinner";
 
 const mediums = ["resin", "texture", "acrylic", "custom", "handmade"];
 const emptyForm = { title: "", description: "", price: "", medium: "resin", stock: "0", category_id: "" };
+
+const fileInputClass =
+  "block w-full text-sm text-stone-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-brand-700";
 
 export function AdminProducts() {
   const qc = useQueryClient();
@@ -24,6 +27,14 @@ export function AdminProducts() {
   const { data: categories } = useQuery({
     queryKey: ["categories"],
     queryFn: () => api.get<{ items: Category[] }>("/v1/categories"),
+  });
+
+  const editingProduct = editing ? data?.items?.find((p) => p.id === editing) : undefined;
+
+  const { data: editingFull } = useQuery({
+    queryKey: ["product", editingProduct?.slug],
+    queryFn: () => api.get<Product>(`/v1/products/${editingProduct!.slug}`),
+    enabled: !!editingProduct?.slug,
   });
 
   const reset = () => {
@@ -55,21 +66,22 @@ export function AdminProducts() {
         productId = created.id;
       }
 
-      // Upload selected files to object storage (presign -> PUT) and collect
-      // their keys, then any pasted image URLs (stored/served as-is).
+      if (!productId) throw new ApiError(500, "internal", "product id missing after save");
+
       const keys: string[] = [];
-      for (const file of files) {
-        keys.push(await uploadImage(file));
+      if (files.length > 0) {
+        keys.push(...(await uploadImages(files)));
       }
       keys.push(...imageUrls.split("\n").map((s) => s.trim()).filter(Boolean));
 
-      for (let i = 0; i < keys.length; i++) {
-        await api.post(`/v1/products/${productId}/images`, { s3_key: keys[i], sort_order: i });
+      if (keys.length > 0) {
+        await api.post(`/v1/products/${productId}/images/batch`, { s3_keys: keys });
       }
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "products"] });
       qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["product"] });
       reset();
     },
     onError: (e) => setError(e instanceof ApiError ? e.message : "Save failed"),
@@ -95,9 +107,13 @@ export function AdminProducts() {
     });
   };
 
+  const removePendingFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   if (isLoading) return <Spinner />;
   const products = data?.items ?? [];
-  const editingProduct = editing ? products.find((p) => p.id === editing) : undefined;
+  const existingImages = editingFull?.images ?? editingProduct?.images ?? [];
 
   return (
     <div className="space-y-8">
@@ -143,44 +159,76 @@ export function AdminProducts() {
         </div>
         <div className="mt-4">
           <label className="label">Product images</label>
-          {editingProduct?.images?.length ? (
-            <div className="mb-2 flex flex-wrap gap-2">
-              {editingProduct.images.map((im, i) => (
-                <img key={i} src={im.url} alt="" className="h-16 w-16 rounded border border-stone-200 object-cover" />
-              ))}
+
+          {existingImages.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs text-stone-500">Saved images ({existingImages.length})</p>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {existingImages.map((im, i) => (
+                  <img key={im.id ?? i} src={im.url} alt="" className="h-16 w-16 rounded border border-stone-200 object-cover" />
+                ))}
+              </div>
             </div>
-          ) : null}
+          )}
 
           <input
             key={fileInputKey}
             type="file"
             accept="image/*"
             multiple
-            className="block w-full text-sm text-stone-600 file:mr-3 file:rounded-md file:border-0 file:bg-brand-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-brand-700"
-            onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
+            className={fileInputClass}
+            onChange={(e) => {
+              const picked = Array.from(e.target.files ?? []);
+              if (picked.length) setFiles((prev) => [...prev, ...picked]);
+              e.target.value = "";
+            }}
           />
+
           {files.length > 0 && (
-            <p className="mt-1 text-xs text-stone-500">{files.length} file(s) selected — uploaded to storage on save.</p>
+            <div className="mt-3">
+              <p className="text-xs font-medium text-stone-600">{files.length} new file(s) to upload on save</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {files.map((file, i) => (
+                  <div key={`${file.name}-${i}`} className="relative">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={file.name || `New image ${i + 1}`}
+                      className="h-16 w-16 rounded border border-brand-200 object-cover"
+                    />
+                    <button
+                      type="button"
+                      className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white"
+                      onClick={() => removePendingFile(i)}
+                      aria-label="Remove"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           <details className="mt-3">
-            <summary className="cursor-pointer text-xs text-stone-400">Or paste image URLs</summary>
+            <summary className="cursor-pointer text-xs text-stone-400">Or paste image URLs (one per line)</summary>
             <textarea
               className="input mt-2 font-mono text-xs"
-              rows={2}
-              placeholder={"https://images.example.com/painting-1.jpg"}
+              rows={3}
+              placeholder={"https://images.example.com/painting-1.jpg\nhttps://images.example.com/painting-2.jpg"}
               value={imageUrls}
               onChange={(e) => setImageUrls(e.target.value)}
             />
           </details>
 
           <p className="mt-1 text-xs text-stone-400">
-            Files are uploaded directly to S3-compatible storage via presigned URLs, then attached to the product.
+            Select multiple files at once, or add more in another pick. All selected images are saved when you click Create/Update.
           </p>
         </div>
 
         <div className="mt-4 flex gap-3">
-          <button className="btn-primary px-6 py-2" disabled={save.isPending}>{editing ? "Update" : "Create"}</button>
+          <button className="btn-primary px-6 py-2" disabled={save.isPending}>
+            {save.isPending ? "Saving…" : editing ? "Update" : "Create"}
+          </button>
           {editing && <button type="button" className="btn-outline px-6 py-2" onClick={reset}>Cancel</button>}
         </div>
       </form>

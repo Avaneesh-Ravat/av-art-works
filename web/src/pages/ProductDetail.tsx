@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
@@ -21,12 +21,19 @@ export function ProductDetail() {
   const qc = useQueryClient();
   const addToCart = useAddToCart();
   const [msg, setMsg] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const { data: product, isLoading } = useQuery({
     queryKey: ["product", slug],
     queryFn: () => api.get<Product>(`/v1/products/${slug}`),
     enabled: !!slug,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [slug, product?.id]);
 
   const wishlist = useMutation({
     mutationFn: (productId: string) => api.post("/v1/wishlist", { product_id: productId }),
@@ -39,7 +46,10 @@ export function ProductDetail() {
   if (isLoading) return <Spinner />;
   if (!product) return <p className="py-20 text-center text-stone-500">Artwork not found.</p>;
 
-  const img = product.images?.[0]?.url || placeholder;
+  const images = product.images?.filter((im) => im.url) ?? [];
+  const activeImage = images[activeIndex]?.url || images[0]?.url || placeholder;
+  const showThumbnails = images.length > 1;
+
   const requireAuth = () => {
     if (!user) {
       navigate("/login", { state: { from: `/products/${slug}` } });
@@ -63,15 +73,40 @@ export function ProductDetail() {
     <div className="mx-auto max-w-6xl px-4 py-10">
       <Link to="/products" className="text-sm text-brand-700 hover:underline">← Back to gallery</Link>
       <div className="mt-4 grid gap-10 md:grid-cols-2">
-        <div className="overflow-hidden rounded-2xl bg-stone-100">
-          <img src={img} alt={product.title} className="h-full w-full object-cover"
-            onError={(e) => ((e.target as HTMLImageElement).src = placeholder)} />
-          {product.images && product.images.length > 1 && (
-            <div className="grid grid-cols-4 gap-2 p-2">
-              {product.images.map((im, i) => (
-                <img key={i} src={im.url} alt="" className="aspect-square w-full rounded object-cover" />
+        <div>
+          <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-stone-100">
+            <img
+              src={activeImage}
+              alt={product.title}
+              className="h-full w-full object-cover"
+              onError={(e) => ((e.target as HTMLImageElement).src = placeholder)}
+            />
+          </div>
+          {showThumbnails && (
+            <div className="mt-3 grid grid-cols-4 gap-2 sm:grid-cols-5">
+              {images.map((im, i) => (
+                <button
+                  key={im.id ?? i}
+                  type="button"
+                  onClick={() => setActiveIndex(i)}
+                  className={`overflow-hidden rounded-lg border-2 transition ${
+                    i === activeIndex ? "border-brand-600 ring-1 ring-brand-600" : "border-transparent hover:border-stone-300"
+                  }`}
+                >
+                  <img
+                    src={im.url}
+                    alt={`${product.title} view ${i + 1}`}
+                    className="aspect-square w-full object-cover"
+                    onError={(e) => ((e.target as HTMLImageElement).src = placeholder)}
+                  />
+                </button>
               ))}
             </div>
+          )}
+          {showThumbnails && (
+            <p className="mt-2 text-center text-xs text-stone-500">
+              {activeIndex + 1} of {images.length} photos
+            </p>
           )}
         </div>
 

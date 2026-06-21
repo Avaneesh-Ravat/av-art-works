@@ -112,3 +112,14 @@ export async function uploadImage(file: File): Promise<string> {
   if (!res.ok) throw new ApiError(res.status, "upload_failed", "image upload failed");
   return presign.key;
 }
+
+function fileForUpload(file: File, index: number): File {
+  if (file.name) return file;
+  const ext = file.type?.split("/")[1] || "jpg";
+  return new File([file], `image-${Date.now()}-${index}.${ext}`, { type: file.type || "image/jpeg" });
+}
+
+// uploadImages uploads every file and returns all stored object keys.
+export async function uploadImages(files: File[]): Promise<string[]> {
+  return Promise.all(files.map((file, i) => uploadImage(fileForUpload(file, i))));
+}

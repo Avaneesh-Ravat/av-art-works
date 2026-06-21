@@ -64,7 +64,7 @@ type createReq struct {
 }
 
 type verifyReq struct {
-	PaymentID        string `json:"payment_id" validate:"required,uuid"`
+	PaymentID         string `json:"payment_id" validate:"required,uuid"`
 	RazorpayPaymentID string `json:"razorpay_payment_id" validate:"required"`
 	RazorpaySignature string `json:"razorpay_signature" validate:"required"`
 }

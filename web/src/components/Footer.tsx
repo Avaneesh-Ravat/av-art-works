@@ -46,9 +46,6 @@ export function Footer() {
           </div>
         )}
       </div>
-      <div className="border-t border-stone-100 py-4 text-center text-xs text-stone-400">
-        © {new Date().getFullYear()} {profile.site_name}. All rights reserved.
-      </div>
     </footer>
   );
 }

@@ -9,8 +9,8 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"database/sql"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 // RunMigrations applies all up-migrations embedded in fsys (under dir) against

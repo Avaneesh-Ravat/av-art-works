@@ -16,10 +16,10 @@ var ErrOrderNotFound = errors.New("order not found")
 
 // Order is the subset of order data the payment service needs.
 type Order struct {
-	ID          string `json:"id"`
-	UserID      string `json:"user_id"`
-	TotalPaise  int64  `json:"total_paise"`
-	Status      string `json:"status"`
+	ID         string `json:"id"`
+	UserID     string `json:"user_id"`
+	TotalPaise int64  `json:"total_paise"`
+	Status     string `json:"status"`
 }
 
 // OrderClient talks to the order service over HTTP using a shared token.

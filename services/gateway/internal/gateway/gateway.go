@@ -29,12 +29,12 @@ type Backends struct {
 
 // Options configures the gateway.
 type Options struct {
-	Backends     Backends
-	Tokens       *auth.Manager
-	Redis        *redis.Client
-	CORSOrigins  []string
-	RateLimit    int
-	RateWindow   time.Duration
+	Backends    Backends
+	Tokens      *auth.Manager
+	Redis       *redis.Client
+	CORSOrigins []string
+	RateLimit   int
+	RateWindow  time.Duration
 }
 
 // route maps a path prefix to an upstream, marking whether auth is required.
@@ -56,6 +56,7 @@ func Handler(opts Options) (http.Handler, error) {
 		{"/api/v1/products", b.Catalog, false}, // GET public; writes enforced downstream
 		{"/api/v1/categories", b.Catalog, false},
 		{"/api/v1/site-profile", b.Catalog, false},
+		{"/api/v1/media", b.Catalog, false},
 		{"/api/v1/uploads", b.Catalog, true},
 
 		{"/api/v1/cart", b.Order, true},

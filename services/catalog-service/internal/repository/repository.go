@@ -80,13 +80,9 @@ func (r *Repository) ListProducts(ctx context.Context, q domain.ProductQuery) ([
 	query := fmt.Sprintf(`
 		SELECT p.id, COALESCE(p.category_id::text,''), p.title, p.slug, p.description,
 		       p.price_paise, p.medium, p.is_active, p.created_at,
-		       COALESCE(inv.quantity - inv.reserved, 0) AS stock,
-		       COALESCE(img.s3_key, '') AS thumb
+		       COALESCE(inv.quantity - inv.reserved, 0) AS stock
 		FROM products p
 		LEFT JOIN inventory inv ON inv.product_id = p.id
-		LEFT JOIN LATERAL (
-		    SELECT s3_key FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1
-		) img ON true
 		WHERE %s
 		ORDER BY %s
 		LIMIT $%d OFFSET $%d`, whereSQL, order, len(args)-1, len(args))
@@ -100,18 +96,20 @@ func (r *Repository) ListProducts(ctx context.Context, q domain.ProductQuery) ([
 	var products []domain.Product
 	for rows.Next() {
 		var p domain.Product
-		var thumb string
 		if err := rows.Scan(&p.ID, &p.CategoryID, &p.Title, &p.Slug, &p.Description,
-			&p.PricePaise, &p.Medium, &p.IsActive, &p.CreatedAt, &p.Stock, &thumb); err != nil {
+			&p.PricePaise, &p.Medium, &p.IsActive, &p.CreatedAt, &p.Stock); err != nil {
 			return nil, 0, err
 		}
 		p.SetPriceFromPaise()
-		if thumb != "" {
-			p.Images = []domain.Image{{S3Key: thumb}}
-		}
 		products = append(products, p)
 	}
-	return products, total, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	if err := r.attachImages(ctx, products); err != nil {
+		return nil, 0, err
+	}
+	return products, total, nil
 }
 
 func (r *Repository) scanProduct(row pgx.Row) (*domain.Product, error) {
@@ -168,6 +166,37 @@ func (r *Repository) withImages(ctx context.Context, p *domain.Product) (*domain
 		p.Images = append(p.Images, img)
 	}
 	return p, rows.Err()
+}
+
+// attachImages loads all images for a slice of products in one query.
+func (r *Repository) attachImages(ctx context.Context, products []domain.Product) error {
+	if len(products) == 0 {
+		return nil
+	}
+	ids := make([]string, len(products))
+	index := make(map[string]int, len(products))
+	for i, p := range products {
+		ids[i] = p.ID
+		index[p.ID] = i
+	}
+	rows, err := r.pool.Query(ctx,
+		`SELECT product_id, id, s3_key, sort_order FROM product_images
+		 WHERE product_id = ANY($1) ORDER BY product_id, sort_order`, ids)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var productID string
+		var img domain.Image
+		if err := rows.Scan(&productID, &img.ID, &img.S3Key, &img.SortOrder); err != nil {
+			return err
+		}
+		if i, ok := index[productID]; ok {
+			products[i].Images = append(products[i].Images, img)
+		}
+	}
+	return rows.Err()
 }
 
 // CreateProduct inserts a product and its initial inventory row.
@@ -255,6 +284,50 @@ func (r *Repository) AddImage(ctx context.Context, productID, s3Key string, sort
 		`INSERT INTO product_images (product_id, s3_key, sort_order) VALUES ($1,$2,$3) RETURNING id`,
 		productID, s3Key, sortOrder).Scan(&img.ID)
 	return &img, err
+}
+
+// AddImages attaches multiple images to a product, appending after existing sort orders.
+func (r *Repository) AddImages(ctx context.Context, productID string, keys []string) ([]domain.Image, error) {
+	var clean []string
+	for _, key := range keys {
+		if key != "" {
+			clean = append(clean, key)
+		}
+	}
+	if len(clean) == 0 {
+		return nil, nil
+	}
+
+	var maxSort int
+	if err := r.pool.QueryRow(ctx,
+		`SELECT COALESCE(MAX(sort_order), -1) FROM product_images WHERE product_id=$1`, productID,
+	).Scan(&maxSort); err != nil {
+		return nil, err
+	}
+
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	var images []domain.Image
+	for i, key := range clean {
+		var img domain.Image
+		img.S3Key = key
+		img.SortOrder = maxSort + 1 + i
+		if err := tx.QueryRow(ctx,
+			`INSERT INTO product_images (product_id, s3_key, sort_order) VALUES ($1,$2,$3) RETURNING id`,
+			productID, key, img.SortOrder,
+		).Scan(&img.ID); err != nil {
+			return nil, err
+		}
+		images = append(images, img)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return images, nil
 }
 
 // ---- Inventory reservation (called by the order service) ----
