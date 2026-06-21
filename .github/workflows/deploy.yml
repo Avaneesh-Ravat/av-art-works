@@ -1,0 +1,50 @@
+name: Deploy
+
+# Deploys to the single EC2 host after CI succeeds on main.
+# Can also be triggered manually from the Actions tab.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build & deploy to EC2
+    runs-on: ubuntu-latest
+    # For workflow_run, only deploy when CI actually passed. Manual runs always proceed.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust the host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Write production .env
+        run: printf '%s' "${{ secrets.PROD_ENV }}" > .env
+
+      - name: Sync repository to the server
+        run: |
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude 'node_modules' \
+            --exclude 'web/dist' \
+            ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/avartworks/"
+
+      - name: Build & restart the stack
+        run: |
+          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            'cd /opt/avartworks && docker compose -f docker-compose.prod.yml --env-file .env up -d --build && docker image prune -f'

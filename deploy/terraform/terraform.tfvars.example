@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and fill in. Do NOT commit terraform.tfvars.
+
+# Your SSH public key (so you can log into the box).
+ssh_public_key = "ssh-ed25519 AAAA... you@host"
+
+# Lock SSH to your IP. Find it with: curl ifconfig.me
+ssh_ingress_cidr = "203.0.113.4/32"
+
+# Your site origin(s) — allows the admin UI to upload images directly to S3.
+cors_allowed_origins = ["https://avartworks.in", "https://www.avartworks.in"]
+
+# Optional overrides:
+# region            = "ap-south-1"
+# instance_type     = "t4g.small"
+# image_bucket_name = "avartworks-images-prod"
