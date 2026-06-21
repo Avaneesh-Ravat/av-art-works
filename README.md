@@ -3,7 +3,7 @@
 A production-grade, cost-effective e-commerce platform for selling paintings and
 artwork (resin art, texture art, acrylic, customized, and handmade pieces).
 
-Built as 4 Go microservices behind an API gateway, with a React + TypeScript
+Built as 4 Go microservices behind an API gateway, with a React + JavaScript
 frontend, PostgreSQL, Redis, and AWS infrastructure (ECS Fargate + Terraform).
 
 ## Architecture (summary)
@@ -62,7 +62,7 @@ same-origin API and CORS is never an issue locally.
 ```
 services/        Go microservices (clean architecture per service)
 pkg/             Shared Go libraries (config, logger, db, auth, httpx, eventbus)
-web/             React + TypeScript frontend (Vite)
+web/             React + JavaScript frontend (Vite)
 deploy/k8s/      Kubernetes manifests
 deploy/terraform/ AWS infrastructure as code
 docs/            Architecture, API, and deployment docs
