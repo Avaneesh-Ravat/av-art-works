@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -54,8 +55,9 @@ func main() {
 		config.GetDuration("JWT_REFRESH_TTL", 168*time.Hour),
 	)
 
-	// Mock storage locally; replaced by an S3-backed implementation in AWS.
-	store := storage.NewMock(config.Get("IMAGE_BASE_URL", "http://localhost:8082/uploads"))
+	// Use S3-compatible object storage when a bucket is configured (AWS S3 in
+	// production, MinIO locally); otherwise fall back to the URL-only mock.
+	store := buildStorage(ctx, log)
 
 	repo := repository.New(pool)
 	svc := service.New(repo, rdb, store, log)
@@ -67,4 +69,27 @@ func main() {
 	if err := httpx.RunServer(addr, h.Routes(corsOrigins), log); err != nil {
 		log.Error("server error", "err", err)
 	}
+}
+
+// buildStorage selects the object-storage backend from configuration.
+func buildStorage(ctx context.Context, log *slog.Logger) storage.Storage {
+	bucket := config.Get("S3_BUCKET", "")
+	if bucket == "" {
+		log.Info("storage backend: mock (no S3_BUCKET configured)")
+		return storage.NewMock(config.Get("IMAGE_BASE_URL", "http://localhost:8082/uploads"))
+	}
+	s3store, err := storage.NewS3(ctx, storage.S3Config{
+		Bucket:         bucket,
+		Region:         config.Get("AWS_REGION", "ap-south-1"),
+		Endpoint:       config.Get("S3_ENDPOINT", ""),
+		PublicBaseURL:  config.Get("S3_PUBLIC_BASE_URL", ""),
+		ForcePathStyle: config.Get("S3_FORCE_PATH_STYLE", "") == "true",
+		PresignTTL:     config.GetDuration("S3_PRESIGN_TTL", 15*time.Minute),
+	})
+	if err != nil {
+		log.Error("s3 storage init failed; falling back to mock", "err", err)
+		return storage.NewMock(config.Get("IMAGE_BASE_URL", "http://localhost:8082/uploads"))
+	}
+	log.Info("storage backend: s3", "bucket", bucket, "endpoint", config.Get("S3_ENDPOINT", "aws"))
+	return s3store
 }

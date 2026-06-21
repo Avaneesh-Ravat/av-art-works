@@ -1,0 +1,9 @@
+# Keep Docker build contexts small and reproducible.
+**/node_modules
+web/dist
+**/.git
+**/.env
+**/*.log
+.cursor
+terraform/.terraform
+**/tmp

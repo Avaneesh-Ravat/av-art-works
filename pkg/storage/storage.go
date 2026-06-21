@@ -49,10 +49,19 @@ func (m *Mock) PresignUpload(filename, _ string) (Presign, error) {
 	}, nil
 }
 
-// PublicURL resolves the publicly served URL for a key.
+// PublicURL resolves the publicly served URL for a key. If the key is already
+// an absolute URL (e.g. an externally hosted image), it is returned unchanged.
 func (m *Mock) PublicURL(key string) string {
 	if key == "" {
 		return ""
 	}
+	if isAbsoluteURL(key) {
+		return key
+	}
 	return fmt.Sprintf("%s/%s", m.BaseURL, key)
+}
+
+// isAbsoluteURL reports whether key is already a fully-qualified http(s) URL.
+func isAbsoluteURL(key string) bool {
+	return strings.HasPrefix(key, "http://") || strings.HasPrefix(key, "https://")
 }

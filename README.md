@@ -33,6 +33,30 @@ make run-user                 # run the user-service (migrates on boot)
 
 Then visit `http://localhost:8081/healthz`.
 
+### Full stack with Docker Compose
+
+```bash
+docker compose up --build      # postgres, redis, all services, gateway, web
+```
+
+- Frontend: `http://localhost:5173`
+- API gateway: `http://localhost:8080`
+
+The default admin login is `admin@avartworks.in` / `admin12345` (configurable
+via `ADMIN_EMAIL` / `ADMIN_PASSWORD` on the user-service).
+
+### Frontend dev server
+
+```bash
+cd web
+cp .env.example .env            # VITE_API_TARGET points at the gateway
+npm install
+npm run dev                     # http://localhost:5173 (proxies /api -> :8080)
+```
+
+The Vite dev server proxies `/api` to the gateway, so the browser sees a
+same-origin API and CORS is never an issue locally.
+
 ## Repository layout
 
 ```
