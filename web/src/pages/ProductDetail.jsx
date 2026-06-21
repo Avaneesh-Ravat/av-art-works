@@ -73,11 +73,11 @@ export function ProductDetail() {
       <Link to="/products" className="text-sm text-brand-700 hover:underline">← Back to gallery</Link>
       <div className="mt-4 grid gap-10 md:grid-cols-2">
         <div>
-          <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-stone-100">
+          <div className="overflow-hidden rounded-2xl bg-stone-100">
             <img
               src={activeImage}
               alt={product.title}
-              className="h-full w-full object-cover"
+              className="block w-full"
               onError={(e) => (e.target.src = placeholder)}
             />
           </div>
@@ -95,7 +95,7 @@ export function ProductDetail() {
                   <img
                     src={im.url}
                     alt={`${product.title} view ${i + 1}`}
-                    className="aspect-square w-full object-cover"
+                    className="aspect-square w-full bg-stone-100 object-contain"
                     onError={(e) => (e.target.src = placeholder)}
                   />
                 </button>

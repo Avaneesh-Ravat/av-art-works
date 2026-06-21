@@ -6,6 +6,29 @@ import { useCart } from "../lib/hooks";
 import { formatINR } from "../lib/format";
 import { Spinner } from "../components/Spinner";
 
+function sameAddress(a, b) {
+  return (
+    a.line1 === b.line1 &&
+    (a.line2 ?? "") === (b.line2 ?? "") &&
+    a.city === b.city &&
+    (a.state ?? "") === (b.state ?? "") &&
+    a.pincode === b.pincode
+  );
+}
+
+async function saveAddressIfNew(addr, savedItems) {
+  if (savedItems?.some((a) => sameAddress(a, addr))) return;
+  await api.post("/v1/users/me/addresses", {
+    line1: addr.line1,
+    line2: addr.line2 ?? "",
+    city: addr.city,
+    state: addr.state ?? "",
+    pincode: addr.pincode,
+    country: "India",
+    is_default: !savedItems?.length,
+  });
+}
+
 export function Checkout() {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -30,7 +53,7 @@ export function Checkout() {
     setBusy(true);
     try {
       // 1. Create the order from the cart.
-      const order = await api.post("/v1/orders", { shipping_address: addr });
+      const order = await api.post("/v1/orders", { shipping_address: { ...addr, country: "India" } });
 
       // 2. Initiate payment.
       const pay = await api.post("/v1/payments", {
@@ -51,6 +74,14 @@ export function Checkout() {
 
       qc.invalidateQueries({ queryKey: ["cart"] });
       qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["product"] });
+      try {
+        await saveAddressIfNew(addr, saved?.items);
+        qc.invalidateQueries({ queryKey: ["addresses"] });
+      } catch {
+        // Order succeeded; address save is best-effort.
+      }
       navigate(`/dashboard/orders?placed=${order.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Checkout failed");
@@ -96,7 +127,7 @@ export function Checkout() {
               </div>
               <div>
                 <label className="label">State</label>
-                <input className="input" value={addr.state} onChange={(e) => setAddr({ ...addr, state: e.target.value })} />
+                <input className="input" required value={addr.state} onChange={(e) => setAddr({ ...addr, state: e.target.value })} />
               </div>
               <div>
                 <label className="label">Pincode</label>

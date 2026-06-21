@@ -164,7 +164,11 @@ func (s *Service) DeleteProduct(ctx context.Context, id string) error {
 
 // SetInventory sets absolute stock for a product.
 func (s *Service) SetInventory(ctx context.Context, productID string, quantity int) error {
-	return s.repo.SetInventory(ctx, productID, quantity)
+	if err := s.repo.SetInventory(ctx, productID, quantity); err != nil {
+		return err
+	}
+	s.invalidateProductCache(ctx, productID)
+	return nil
 }
 
 // PresignUpload returns an upload target for a product image.
@@ -212,15 +216,33 @@ func (s *Service) AddImages(ctx context.Context, productID string, keys []string
 	return images, nil
 }
 
+func (s *Service) invalidateProductCache(ctx context.Context, productID string) {
+	if p, err := s.repo.GetProductByID(ctx, productID); err == nil {
+		s.rdb.Del(ctx, "catalog:product:"+p.Slug)
+	}
+}
+
 // Reserve, Release, Commit proxy inventory operations for the order service.
 func (s *Service) Reserve(ctx context.Context, productID string, qty int) error {
-	return s.repo.Reserve(ctx, productID, qty)
+	if err := s.repo.Reserve(ctx, productID, qty); err != nil {
+		return err
+	}
+	s.invalidateProductCache(ctx, productID)
+	return nil
 }
 func (s *Service) Release(ctx context.Context, productID string, qty int) error {
-	return s.repo.Release(ctx, productID, qty)
+	if err := s.repo.Release(ctx, productID, qty); err != nil {
+		return err
+	}
+	s.invalidateProductCache(ctx, productID)
+	return nil
 }
 func (s *Service) Commit(ctx context.Context, productID string, qty int) error {
-	return s.repo.Commit(ctx, productID, qty)
+	if err := s.repo.Commit(ctx, productID, qty); err != nil {
+		return err
+	}
+	s.invalidateProductCache(ctx, productID)
+	return nil
 }
 
 // ---- Categories ----

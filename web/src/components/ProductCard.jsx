@@ -11,11 +11,11 @@ export function ProductCard({ product }) {
   const img = product.images?.[0]?.url || placeholder;
   return (
     <Link to={`/products/${product.slug}`} className="card group overflow-hidden transition hover:shadow-md">
-      <div className="aspect-[4/3] overflow-hidden bg-stone-100">
+      <div className="overflow-hidden bg-stone-100">
         <img
           src={img}
           alt={product.title}
-          className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+          className="block w-full transition duration-300 group-hover:scale-105"
           onError={(e) => (e.target.src = placeholder)}
         />
       </div>

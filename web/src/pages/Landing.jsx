@@ -82,12 +82,12 @@ export function Landing() {
       {/* About */}
       <section id="about" className="bg-white">
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 md:grid-cols-2">
-          <div className="aspect-square overflow-hidden rounded-2xl bg-stone-100">
+          <div className="overflow-hidden rounded-2xl bg-stone-100">
             {profile.about_image_url ? (
               <img
                 src={profile.about_image_url}
                 alt={profile.about_title}
-                className="h-full w-full object-cover"
+                className="block w-full"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center font-display text-xl text-stone-400">
