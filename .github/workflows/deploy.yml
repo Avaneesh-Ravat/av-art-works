@@ -45,6 +45,27 @@ jobs:
             ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/avartworks/"
 
       - name: Build & restart the stack
+        env:
+          SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
         run: |
-          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            'cd /opt/avartworks && docker compose -f docker-compose.prod.yml --env-file .env up -d --build && docker image prune -f'
+          SSH="ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 $SSH_TARGET"
+
+          # Launch the build detached so it survives this SSH session (heavy
+          # Go builds on a small box otherwise drop the connection mid-build).
+          $SSH 'cd /opt/avartworks && rm -f deploy.exit && chmod +x deploy/remote-up.sh && setsid bash deploy/remote-up.sh > deploy.log 2>&1 < /dev/null & echo launched'
+
+          # Poll for completion with short-lived connections (up to ~20 min).
+          for i in $(seq 1 120); do
+            sleep 10
+            status="$($SSH 'cat /opt/avartworks/deploy.exit 2>/dev/null || echo RUNNING')"
+            echo "poll $i: $status"
+            if [ "$status" != "RUNNING" ]; then
+              echo "=== deploy.log (tail) ==="
+              $SSH 'tail -n 40 /opt/avartworks/deploy.log' || true
+              echo "=== container status ==="
+              $SSH 'cd /opt/avartworks && docker compose -f docker-compose.prod.yml ps' || true
+              exit "$status"
+            fi
+          done
+          echo "Timed out waiting for the build to finish"
+          exit 1
