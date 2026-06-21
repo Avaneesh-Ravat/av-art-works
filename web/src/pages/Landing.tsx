@@ -21,6 +21,8 @@ export function Landing() {
     queryFn: () => api.get<{ items: Category[] }>("/v1/categories"),
   });
 
+  const featuredItems = featured?.items?.filter((p) => p.images?.[0]?.url) ?? [];
+
   return (
     <div>
       {/* Hero */}
@@ -71,10 +73,12 @@ export function Landing() {
         </div>
         {isLoading ? (
           <Spinner />
-        ) : (
+        ) : featuredItems.length > 0 ? (
           <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {featured?.items?.map((p) => <ProductCard key={p.id} product={p} />)}
+            {featuredItems.map((p) => <ProductCard key={p.id} product={p} />)}
           </div>
+        ) : (
+          <p className="mt-6 py-8 text-center text-stone-500">Not available</p>
         )}
       </section>
 
