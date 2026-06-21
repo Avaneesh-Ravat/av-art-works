@@ -1,5 +1,7 @@
 # AV Art Works
 
+[![CI](https://github.com/Avaneesh-Ravat/av-art-works/actions/workflows/ci.yml/badge.svg)](https://github.com/Avaneesh-Ravat/av-art-works/actions/workflows/ci.yml)
+
 A production-grade, cost-effective e-commerce platform for selling paintings and
 artwork (resin art, texture art, acrylic, customized, and handmade pieces).
 
