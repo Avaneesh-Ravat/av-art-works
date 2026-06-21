@@ -1,17 +1,13 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
+import { useSiteProfileContent } from "../lib/hooks";
 import type { Category, Page, Product } from "../types";
 import { ProductCard } from "../components/ProductCard";
 import { Spinner } from "../components/Spinner";
 
-const testimonials = [
-  { name: "Ananya R.", text: "The resin tray I ordered is even more stunning in person. Beautiful craftsmanship!" },
-  { name: "Vikram S.", text: "Commissioned a custom acrylic piece for my living room. The process was smooth and personal." },
-  { name: "Meera K.", text: "Gorgeous texture art, carefully packed and delivered on time. Highly recommend." },
-];
-
 export function Landing() {
+  const { profile } = useSiteProfileContent();
   const { data: featured, isLoading } = useQuery({
     queryKey: ["products", "featured"],
     queryFn: () => api.get<Page<Product>>("/v1/products?limit=4&sort=newest"),
@@ -29,13 +25,15 @@ export function Landing() {
       <section className="bg-gradient-to-br from-brand-50 to-stone-100">
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-20 md:grid-cols-2">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-widest text-brand-600">Handcrafted in India</p>
+            {profile.hero_tagline && (
+              <p className="text-sm font-semibold uppercase tracking-widest text-brand-600">{profile.hero_tagline}</p>
+            )}
             <h1 className="mt-3 font-display text-4xl font-bold leading-tight text-stone-900 md:text-5xl">
-              Art that brings your walls to life
+              {profile.hero_title}
             </h1>
-            <p className="mt-4 text-lg text-stone-600">
-              Original resin, texture, acrylic and customized paintings — each piece thoughtfully made by hand.
-            </p>
+            {profile.hero_description && (
+              <p className="mt-4 text-lg text-stone-600">{profile.hero_description}</p>
+            )}
             <div className="mt-6 flex gap-3">
               <Link to="/products" className="btn-primary px-6 py-3">Explore the Gallery</Link>
               <a href="#about" className="btn-outline px-6 py-3">About the Artist</a>
@@ -43,7 +41,7 @@ export function Landing() {
           </div>
           <div className="aspect-[4/3] overflow-hidden rounded-2xl bg-brand-100 shadow-lg">
             <div className="flex h-full w-full items-center justify-center font-display text-2xl text-brand-400">
-              AV Art Works
+              {profile.site_name}
             </div>
           </div>
         </div>
@@ -86,33 +84,39 @@ export function Landing() {
       <section id="about" className="bg-white">
         <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-16 md:grid-cols-2">
           <div className="aspect-square overflow-hidden rounded-2xl bg-stone-100">
-            <div className="flex h-full w-full items-center justify-center font-display text-xl text-stone-400">
-              The Artist
-            </div>
+            {profile.about_image_url ? (
+              <img
+                src={profile.about_image_url}
+                alt={profile.about_title}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center font-display text-xl text-stone-400">
+                The Artist
+              </div>
+            )}
           </div>
           <div>
-            <h2 className="font-display text-2xl font-bold text-stone-900">About the artist</h2>
-            <p className="mt-4 text-stone-600">
-              AV Art Works is a small studio devoted to handmade art. Every painting begins as a blank canvas and
-              becomes a one-of-a-kind piece through layers of resin, texture and color. We believe art should feel
-              personal — which is why we love creating customized commissions for our customers.
-            </p>
+            <h2 className="font-display text-2xl font-bold text-stone-900">{profile.about_title}</h2>
+            <p className="mt-4 text-stone-600">{profile.about_text}</p>
           </div>
         </div>
       </section>
 
       {/* Testimonials */}
-      <section className="mx-auto max-w-6xl px-4 py-16">
-        <h2 className="text-center font-display text-2xl font-bold text-stone-900">What our customers say</h2>
-        <div className="mt-8 grid gap-6 md:grid-cols-3">
-          {testimonials.map((t) => (
-            <figure key={t.name} className="card p-6">
-              <blockquote className="text-stone-600">“{t.text}”</blockquote>
-              <figcaption className="mt-4 text-sm font-semibold text-stone-800">— {t.name}</figcaption>
-            </figure>
-          ))}
-        </div>
-      </section>
+      {profile.testimonials.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 py-16">
+          <h2 className="text-center font-display text-2xl font-bold text-stone-900">What our customers say</h2>
+          <div className="mt-8 grid gap-6 md:grid-cols-3">
+            {profile.testimonials.map((t) => (
+              <figure key={`${t.name}-${t.text}`} className="card p-6">
+                <blockquote className="text-stone-600">“{t.text}”</blockquote>
+                <figcaption className="mt-4 text-sm font-semibold text-stone-800">— {t.name}</figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

@@ -43,6 +43,7 @@ func (h *Handler) Routes(corsOrigins []string) http.Handler {
 		r.Get("/products", h.listProducts)
 		r.Get("/products/{slug}", h.getProduct)
 		r.Get("/categories", h.listCategories)
+		r.Get("/site-profile", h.getSiteProfile)
 
 		// Admin writes.
 		r.Group(func(r chi.Router) {
@@ -53,6 +54,8 @@ func (h *Handler) Routes(corsOrigins []string) http.Handler {
 			r.Patch("/products/{id}/inventory", h.setInventory)
 			r.Post("/products/{id}/images", h.addImage)
 			r.Post("/uploads/presign", h.presign)
+			r.Put("/site-profile", h.updateSiteProfile)
+			r.Patch("/site-profile/about", h.updateAboutSection)
 			r.Post("/categories", h.createCategory)
 			r.Put("/categories/{id}", h.updateCategory)
 			r.Delete("/categories/{id}", h.deleteCategory)
@@ -127,6 +130,27 @@ type categoryReq struct {
 	Description string `json:"description"`
 }
 
+type siteProfileReq struct {
+	SiteName          string                `json:"site_name" validate:"required"`
+	FooterTagline     string                `json:"footer_tagline"`
+	HeroTagline       string                `json:"hero_tagline"`
+	HeroTitle         string                `json:"hero_title" validate:"required"`
+	HeroDescription   string                `json:"hero_description"`
+	Email             string                `json:"email"`
+	Phone             string                `json:"phone"`
+	Location          string                `json:"location"`
+	InstagramURL      string                `json:"instagram_url"`
+	FacebookURL       string                `json:"facebook_url"`
+	PinterestURL      string                `json:"pinterest_url"`
+	Testimonials      []domain.Testimonial  `json:"testimonials"`
+}
+
+type aboutSectionReq struct {
+	AboutTitle      string  `json:"about_title" validate:"required"`
+	AboutText       string  `json:"about_text"`
+	AboutImageS3Key *string `json:"about_image_s3_key"`
+}
+
 type qtyReq struct {
 	Qty int `json:"qty" validate:"required,gt=0"`
 }
@@ -167,6 +191,19 @@ func (h *Handler) listCategories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": cats})
+}
+
+func (h *Handler) getSiteProfile(w http.ResponseWriter, r *http.Request) {
+	p, err := h.svc.GetSiteProfile(r.Context())
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			httpx.Error(w, http.StatusNotFound, "not_found", "site profile not found")
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, "internal", "could not load site profile")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, p)
 }
 
 // ---- Admin handlers ----
@@ -250,6 +287,56 @@ func (h *Handler) addImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusCreated, img)
+}
+
+func (h *Handler) updateSiteProfile(w http.ResponseWriter, r *http.Request) {
+	var req siteProfileReq
+	if err := httpx.Decode(r, &req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	p := &domain.SiteProfile{
+		SiteName:         req.SiteName,
+		FooterTagline:    req.FooterTagline,
+		HeroTagline:      req.HeroTagline,
+		HeroTitle:        req.HeroTitle,
+		HeroDescription:  req.HeroDescription,
+		Email:            req.Email,
+		Phone:            req.Phone,
+		Location:         req.Location,
+		InstagramURL:     req.InstagramURL,
+		FacebookURL:      req.FacebookURL,
+		PinterestURL:     req.PinterestURL,
+		Testimonials:     req.Testimonials,
+	}
+	updated, err := h.svc.UpdateSiteProfile(r.Context(), p)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			httpx.Error(w, http.StatusNotFound, "not_found", "site profile not found")
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, "internal", "could not update site profile")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, updated)
+}
+
+func (h *Handler) updateAboutSection(w http.ResponseWriter, r *http.Request) {
+	var req aboutSectionReq
+	if err := httpx.Decode(r, &req); err != nil {
+		httpx.Error(w, http.StatusBadRequest, "invalid_request", err.Error())
+		return
+	}
+	updated, err := h.svc.UpdateAboutSection(r.Context(), req.AboutTitle, req.AboutText, req.AboutImageS3Key)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			httpx.Error(w, http.StatusNotFound, "not_found", "site profile not found")
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, "internal", "could not update about section")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, updated)
 }
 
 func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {

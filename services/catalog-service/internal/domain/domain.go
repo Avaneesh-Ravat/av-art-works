@@ -72,3 +72,30 @@ type Page[T any] struct {
 	Page  int `json:"page"`
 	Limit int `json:"limit"`
 }
+
+// Testimonial is a customer quote shown on the landing page.
+type Testimonial struct {
+	Name string `json:"name"`
+	Text string `json:"text"`
+}
+
+// SiteProfile holds editable public site content (singleton row).
+type SiteProfile struct {
+	SiteName          string        `json:"site_name"`
+	FooterTagline     string        `json:"footer_tagline"`
+	HeroTagline       string        `json:"hero_tagline"`
+	HeroTitle         string        `json:"hero_title"`
+	HeroDescription   string        `json:"hero_description"`
+	AboutTitle        string        `json:"about_title"`
+	AboutText         string        `json:"about_text"`
+	AboutImageS3Key   string        `json:"about_image_s3_key,omitempty"`
+	AboutImageURL     string        `json:"about_image_url,omitempty"`
+	Email             string        `json:"email"`
+	Phone             string        `json:"phone"`
+	Location          string        `json:"location"`
+	InstagramURL      string        `json:"instagram_url"`
+	FacebookURL       string        `json:"facebook_url"`
+	PinterestURL      string        `json:"pinterest_url"`
+	Testimonials      []Testimonial `json:"testimonials"`
+	UpdatedAt         time.Time     `json:"updated_at"`
+}

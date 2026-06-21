@@ -3,12 +3,16 @@ import { AdminAnalytics } from "./AdminAnalytics";
 import { AdminProducts } from "./AdminProducts";
 import { AdminCategories } from "./AdminCategories";
 import { AdminOrders } from "./AdminOrders";
+import { AdminSiteProfile } from "./AdminSiteProfile";
+import { AdminAboutArtist } from "./AdminAboutArtist";
 
 const tabs = [
   { to: "/admin", label: "Analytics", end: true },
   { to: "/admin/products", label: "Products" },
   { to: "/admin/categories", label: "Categories" },
   { to: "/admin/orders", label: "Orders" },
+  { to: "/admin/about-artist", label: "About artist" },
+  { to: "/admin/site-profile", label: "Site profile" },
 ];
 
 export function AdminDashboard() {
@@ -36,6 +40,8 @@ export function AdminDashboard() {
             <Route path="products" element={<AdminProducts />} />
             <Route path="categories" element={<AdminCategories />} />
             <Route path="orders" element={<AdminOrders />} />
+            <Route path="about-artist" element={<AdminAboutArtist />} />
+            <Route path="site-profile" element={<AdminSiteProfile />} />
           </Routes>
         </div>
       </div>

@@ -3,9 +3,11 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -360,4 +362,84 @@ func (r *Repository) CategoryIDBySlug(ctx context.Context, slug string) (string,
 		return "", nil
 	}
 	return id, err
+}
+
+// ---- Site profile (singleton) ----
+
+// GetSiteProfile returns the public site profile row.
+func (r *Repository) GetSiteProfile(ctx context.Context) (*domain.SiteProfile, error) {
+	const q = `
+		SELECT site_name, footer_tagline, hero_tagline, hero_title, hero_description,
+		       about_title, about_text, about_image_s3_key, email, phone, location,
+		       instagram_url, facebook_url, pinterest_url, testimonials, updated_at
+		FROM site_profile WHERE id = 1`
+	var p domain.SiteProfile
+	var testimonialsJSON []byte
+	err := r.pool.QueryRow(ctx, q).Scan(
+		&p.SiteName, &p.FooterTagline, &p.HeroTagline, &p.HeroTitle, &p.HeroDescription,
+		&p.AboutTitle, &p.AboutText, &p.AboutImageS3Key, &p.Email, &p.Phone, &p.Location,
+		&p.InstagramURL, &p.FacebookURL, &p.PinterestURL, &testimonialsJSON, &p.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if len(testimonialsJSON) > 0 {
+		if err := json.Unmarshal(testimonialsJSON, &p.Testimonials); err != nil {
+			return nil, err
+		}
+	}
+	return &p, nil
+}
+
+// UpdateSiteProfile replaces the singleton site profile row.
+func (r *Repository) UpdateSiteProfile(ctx context.Context, p *domain.SiteProfile) (*domain.SiteProfile, error) {
+	testimonialsJSON, err := json.Marshal(p.Testimonials)
+	if err != nil {
+		return nil, err
+	}
+	const q = `
+		UPDATE site_profile SET
+		    site_name=$1, footer_tagline=$2, hero_tagline=$3, hero_title=$4, hero_description=$5,
+		    email=$6, phone=$7, location=$8,
+		    instagram_url=$9, facebook_url=$10, pinterest_url=$11, testimonials=$12, updated_at=now()
+		WHERE id = 1
+		RETURNING updated_at`
+	err = r.pool.QueryRow(ctx, q,
+		p.SiteName, p.FooterTagline, p.HeroTagline, p.HeroTitle, p.HeroDescription,
+		p.Email, p.Phone, p.Location,
+		p.InstagramURL, p.FacebookURL, p.PinterestURL, testimonialsJSON,
+	).Scan(&p.UpdatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// UpdateAboutSection updates only the home page "About the artist" content.
+func (r *Repository) UpdateAboutSection(ctx context.Context, title, text, imageKey string) (*domain.SiteProfile, error) {
+	const q = `
+		UPDATE site_profile SET
+		    about_title=$1, about_text=$2, about_image_s3_key=$3, updated_at=now()
+		WHERE id = 1
+		RETURNING updated_at`
+	var updatedAt time.Time
+	err := r.pool.QueryRow(ctx, q, title, text, imageKey).Scan(&updatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	p, err := r.GetSiteProfile(ctx)
+	if err != nil {
+		return nil, err
+	}
+	p.UpdatedAt = updatedAt
+	return p, nil
 }

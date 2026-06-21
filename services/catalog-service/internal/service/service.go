@@ -226,3 +226,48 @@ func (s *Service) ResolveCategory(ctx context.Context, slugOrID string) string {
 	}
 	return slugOrID // assume it's already an id
 }
+
+// GetSiteProfile returns public site content with resolved image URLs.
+func (s *Service) GetSiteProfile(ctx context.Context) (*domain.SiteProfile, error) {
+	p, err := s.repo.GetSiteProfile(ctx)
+	if err != nil {
+		return nil, err
+	}
+	s.resolveSiteProfileURLs(p)
+	return p, nil
+}
+
+// UpdateSiteProfile replaces editable site content (about section is updated separately).
+func (s *Service) UpdateSiteProfile(ctx context.Context, p *domain.SiteProfile) (*domain.SiteProfile, error) {
+	if _, err := s.repo.UpdateSiteProfile(ctx, p); err != nil {
+		return nil, err
+	}
+	return s.GetSiteProfile(ctx)
+}
+
+func (s *Service) resolveSiteProfileURLs(p *domain.SiteProfile) {
+	if p.AboutImageS3Key != "" {
+		p.AboutImageURL = s.store.PublicURL(p.AboutImageS3Key)
+	}
+}
+
+// UpdateAboutSection updates the home page "About the artist" section.
+// When imageKey is nil the existing image is kept; an empty string removes it.
+func (s *Service) UpdateAboutSection(ctx context.Context, title, text string, imageKey *string) (*domain.SiteProfile, error) {
+	key := ""
+	if imageKey != nil {
+		key = *imageKey
+	} else {
+		current, err := s.repo.GetSiteProfile(ctx)
+		if err != nil {
+			return nil, err
+		}
+		key = current.AboutImageS3Key
+	}
+	p, err := s.repo.UpdateAboutSection(ctx, title, text, key)
+	if err != nil {
+		return nil, err
+	}
+	s.resolveSiteProfileURLs(p)
+	return p, nil
+}

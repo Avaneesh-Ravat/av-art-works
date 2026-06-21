@@ -98,6 +98,52 @@ export interface WishlistItem {
   price: number;
 }
 
+export interface Testimonial {
+  name: string;
+  text: string;
+}
+
+export interface SiteProfile {
+  site_name: string;
+  footer_tagline: string;
+  hero_tagline: string;
+  hero_title: string;
+  hero_description: string;
+  about_title: string;
+  about_text: string;
+  about_image_url?: string;
+  about_image_s3_key?: string;
+  email: string;
+  phone: string;
+  location: string;
+  instagram_url: string;
+  facebook_url: string;
+  pinterest_url: string;
+  testimonials: Testimonial[];
+  updated_at: string;
+}
+
+export interface SiteProfileInput {
+  site_name: string;
+  footer_tagline: string;
+  hero_tagline: string;
+  hero_title: string;
+  hero_description: string;
+  email: string;
+  phone: string;
+  location: string;
+  instagram_url: string;
+  facebook_url: string;
+  pinterest_url: string;
+  testimonials: Testimonial[];
+}
+
+export interface AboutSectionInput {
+  about_title: string;
+  about_text: string;
+  about_image_s3_key: string;
+}
+
 export interface AuthResponse {
   access_token: string;
   refresh_token: string;

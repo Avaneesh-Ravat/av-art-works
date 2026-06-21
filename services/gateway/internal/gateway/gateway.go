@@ -55,6 +55,7 @@ func Handler(opts Options) (http.Handler, error) {
 
 		{"/api/v1/products", b.Catalog, false}, // GET public; writes enforced downstream
 		{"/api/v1/categories", b.Catalog, false},
+		{"/api/v1/site-profile", b.Catalog, false},
 		{"/api/v1/uploads", b.Catalog, true},
 
 		{"/api/v1/cart", b.Order, true},
