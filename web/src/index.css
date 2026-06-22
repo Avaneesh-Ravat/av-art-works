@@ -3,28 +3,104 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
-    @apply bg-stone-50 text-stone-800 antialiased;
+    @apply bg-cream text-ink antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  ::selection {
+    @apply bg-brand-200/70 text-brand-900;
+  }
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-cream;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-brand-200;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-brand-300;
   }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-brand-400 disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold tracking-tight transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 focus-visible:ring-offset-cream disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700;
+    @apply btn bg-brand-600 text-white shadow-soft hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-lift active:translate-y-0;
+  }
+  .btn-dark {
+    @apply btn bg-ink text-white shadow-soft hover:-translate-y-0.5 hover:bg-stone-800 hover:shadow-lift active:translate-y-0;
   }
   .btn-outline {
-    @apply btn border border-stone-300 bg-white text-stone-700 hover:bg-stone-100;
+    @apply btn border border-brand-200 bg-white/70 text-brand-800 backdrop-blur hover:-translate-y-0.5 hover:border-brand-300 hover:bg-white hover:shadow-soft active:translate-y-0;
+  }
+  .btn-ghost {
+    @apply btn text-stone-600 hover:bg-brand-50 hover:text-brand-700;
   }
   .input {
-    @apply w-full rounded-md border border-stone-300 px-3 py-2 text-sm focus:border-brand-400 focus:outline-none focus:ring-1 focus:ring-brand-400;
+    @apply w-full rounded-xl border border-stone-200 bg-white px-3.5 py-2.5 text-sm text-ink shadow-sm transition placeholder:text-stone-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30;
   }
   .label {
-    @apply mb-1 block text-sm font-medium text-stone-700;
+    @apply mb-1.5 block text-sm font-medium text-stone-600;
   }
   .card {
-    @apply rounded-lg border border-stone-200 bg-white shadow-sm;
+    @apply rounded-2xl border border-stone-200/80 bg-white shadow-soft;
+  }
+  .card-hover {
+    @apply card transition-all duration-300 hover:-translate-y-1 hover:border-brand-200 hover:shadow-lift;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3.5 py-1.5 text-sm font-medium text-stone-600 transition hover:border-brand-300 hover:text-brand-700;
+  }
+  .chip-active {
+    @apply border-brand-500 bg-brand-600 text-white shadow-soft hover:text-white;
+  }
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold;
+  }
+  .pill-muted {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-brand-700;
+  }
+  .section {
+    @apply mx-auto max-w-6xl px-4 sm:px-6;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.2em] text-brand-600;
+  }
+  .skeleton {
+    @apply relative overflow-hidden rounded-xl bg-stone-200/70;
+  }
+  .skeleton::after {
+    content: "";
+    @apply absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/60 to-transparent;
+  }
+  .link-underline {
+    @apply relative font-medium text-brand-700 after:absolute after:-bottom-0.5 after:left-0 after:h-px after:w-0 after:bg-brand-700 after:transition-all hover:after:w-full;
+  }
+}
+
+@layer utilities {
+  .delay-100 {
+    animation-delay: 0.1s;
+  }
+  .delay-200 {
+    animation-delay: 0.2s;
+  }
+  .delay-300 {
+    animation-delay: 0.3s;
+  }
+  .delay-500 {
+    animation-delay: 0.5s;
+  }
+  .text-balance {
+    text-wrap: balance;
   }
 }

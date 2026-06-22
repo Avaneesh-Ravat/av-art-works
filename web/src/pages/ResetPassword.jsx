@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, ApiError } from "../lib/api";
+import { AuthShell } from "../components/AuthShell";
 
 export function ResetPassword() {
   const [params] = useSearchParams();
@@ -23,13 +24,14 @@ export function ResetPassword() {
   };
 
   return (
-    <div className="mx-auto max-w-md px-4 py-16">
-      <h1 className="font-display text-2xl font-bold text-stone-900">Reset password</h1>
+    <AuthShell title="Reset password" subtitle="Choose a new password for your account.">
       {done ? (
-        <p className="card mt-6 p-6 text-sm text-green-700">Password updated. Redirecting to login…</p>
+        <p className="rounded-xl bg-accent-50 px-4 py-3 text-sm font-medium text-accent-700">
+          Password updated. Redirecting to login…
+        </p>
       ) : (
-        <form onSubmit={submit} className="card mt-6 space-y-4 p-6">
-          {error && <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+        <form onSubmit={submit} className="space-y-4">
+          {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
           <div>
             <label className="label">Reset token</label>
             <input className="input" required value={token} onChange={(e) => setToken(e.target.value)} />
@@ -38,12 +40,12 @@ export function ResetPassword() {
             <label className="label">New password</label>
             <input className="input" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
-          <button className="btn-primary w-full py-2.5">Update password</button>
+          <button className="btn-primary w-full py-3">Update password</button>
           <p className="text-center text-sm">
-            <Link to="/login" className="text-brand-700 hover:underline">Back to login</Link>
+            <Link to="/login" className="link-underline">Back to login</Link>
           </p>
         </form>
       )}
-    </div>
+    </AuthShell>
   );
 }

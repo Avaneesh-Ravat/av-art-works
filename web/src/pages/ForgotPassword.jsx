@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { AuthShell } from "../components/AuthShell";
 
 export function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -13,29 +14,30 @@ export function ForgotPassword() {
   };
 
   return (
-    <div className="mx-auto max-w-md px-4 py-16">
-      <h1 className="font-display text-2xl font-bold text-stone-900">Forgot password</h1>
+    <AuthShell title="Forgot password" subtitle="We’ll help you get back into your account.">
       {sent ? (
-        <div className="card mt-6 p-6 text-sm text-stone-600">
-          <p>If an account exists for <strong>{email}</strong>, a reset link has been sent.</p>
-          <p className="mt-3 text-stone-500">
+        <div className="space-y-3 text-sm text-stone-600">
+          <div className="rounded-xl bg-accent-50 px-4 py-3 text-accent-700">
+            If an account exists for <strong>{email}</strong>, a reset link has been sent.
+          </div>
+          <p className="text-stone-500">
             (In this demo the reset token is logged by the user-service; use it on the{" "}
-            <Link to="/reset-password" className="text-brand-700 hover:underline">reset page</Link>.)
+            <Link to="/reset-password" className="link-underline">reset page</Link>.)
           </p>
         </div>
       ) : (
-        <form onSubmit={submit} className="card mt-6 space-y-4 p-6">
+        <form onSubmit={submit} className="space-y-4">
           <p className="text-sm text-stone-500">Enter your email and we’ll send a reset link.</p>
           <div>
             <label className="label">Email</label>
             <input className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
-          <button className="btn-primary w-full py-2.5">Send reset link</button>
+          <button className="btn-primary w-full py-3">Send reset link</button>
           <p className="text-center text-sm">
-            <Link to="/login" className="text-brand-700 hover:underline">Back to login</Link>
+            <Link to="/login" className="link-underline">Back to login</Link>
           </p>
         </form>
       )}
-    </div>
+    </AuthShell>
   );
 }

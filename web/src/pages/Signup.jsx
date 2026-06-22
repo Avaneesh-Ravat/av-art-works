@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { ApiError } from "../lib/api";
+import { AuthShell } from "../components/AuthShell";
 
 export function Signup() {
   const { register } = useAuth();
@@ -31,11 +32,9 @@ export function Signup() {
   };
 
   return (
-    <div className="mx-auto max-w-md px-4 py-16">
-      <h1 className="font-display text-2xl font-bold text-stone-900">Create your account</h1>
-      <p className="mt-1 text-sm text-stone-500">Join AV Art Works to shop and track orders.</p>
-      <form onSubmit={submit} className="card mt-6 space-y-4 p-6">
-        {error && <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+    <AuthShell title="Create your account" subtitle="Join AV Art Works to shop and track orders.">
+      <form onSubmit={submit} className="space-y-4">
+        {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
         <div>
           <label className="label">Full name</label>
           <input className="input" required value={form.full_name} onChange={update("full_name")} />
@@ -51,14 +50,15 @@ export function Signup() {
         <div>
           <label className="label">Password</label>
           <input className="input" type="password" required value={form.password} onChange={update("password")} />
+          <p className="mt-1.5 text-xs text-stone-400">At least 8 characters.</p>
         </div>
-        <button className="btn-primary w-full py-2.5" disabled={busy}>
+        <button className="btn-primary w-full py-3" disabled={busy}>
           {busy ? "Creating…" : "Create account"}
         </button>
         <p className="text-center text-sm text-stone-500">
-          Already have an account? <Link to="/login" className="text-brand-700 hover:underline">Sign in</Link>
+          Already have an account? <Link to="/login" className="link-underline">Sign in</Link>
         </p>
       </form>
-    </div>
+    </AuthShell>
   );
 }

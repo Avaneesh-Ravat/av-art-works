@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
 import { useCart } from "../lib/hooks";
 import { formatINR } from "../lib/format";
 import { Spinner } from "../components/Spinner";
+import { MapPinIcon, ShieldIcon } from "../components/icons";
 
 function sameAddress(a, b) {
   return (
@@ -52,17 +53,13 @@ export function Checkout() {
     setError("");
     setBusy(true);
     try {
-      // 1. Create the order from the cart.
       const order = await api.post("/v1/orders", { shipping_address: { ...addr, country: "India" } });
 
-      // 2. Initiate payment.
       const pay = await api.post("/v1/payments", {
         order_id: order.id,
         method,
       });
 
-      // 3. For the online (mock Razorpay) flow, simulate the checkout widget
-      //    then verify. A real integration would open the Razorpay modal here.
       if (method === "razorpay") {
         const sim = await api.post(`/v1/payments/${pay.payment.id}/simulate`);
         await api.post(`/v1/payments/verify`, {
@@ -93,26 +90,47 @@ export function Checkout() {
   if (isLoading) return <Spinner />;
   const items = cart?.items ?? [];
   if (items.length === 0) {
-    return <p className="py-20 text-center text-stone-500">Your cart is empty.</p>;
+    return (
+      <div className="section py-24 text-center">
+        <p className="font-display text-2xl font-bold text-ink">Your cart is empty</p>
+        <Link to="/products" className="btn-primary mt-6 px-6 py-3">Browse the gallery</Link>
+      </div>
+    );
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
-      <h1 className="font-display text-3xl font-bold text-stone-900">Checkout</h1>
-      <div className="mt-6 grid gap-8 md:grid-cols-3">
-        <form onSubmit={placeOrder} className="md:col-span-2 space-y-6">
+    <div className="section py-10">
+      <Link to="/cart" className="text-sm font-medium text-stone-500 transition hover:text-brand-700">← Back to cart</Link>
+      <h1 className="mt-2 font-display text-4xl font-black tracking-tight text-ink">Checkout</h1>
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
+        <form onSubmit={placeOrder} className="space-y-6">
           <section className="card p-6">
-            <h2 className="font-semibold text-stone-800">Shipping address</h2>
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 font-display text-sm font-bold text-white">1</span>
+              <h2 className="font-display text-xl font-bold text-ink">Shipping address</h2>
+            </div>
+
             {saved?.items?.length ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {saved.items.map((a) => (
-                  <button key={a.id} type="button" className="btn-outline px-3 py-1.5 text-xs" onClick={() => applySaved(a)}>
-                    {a.line1}, {a.city}
-                  </button>
-                ))}
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wider text-stone-400">Saved addresses</p>
+                <div className="flex flex-wrap gap-2">
+                  {saved.items.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className="chip"
+                      onClick={() => applySaved(a)}
+                    >
+                      <MapPinIcon size={14} />
+                      {a.line1}, {a.city}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label className="label">Address line 1</label>
                 <input className="input" required value={addr.line1} onChange={(e) => setAddr({ ...addr, line1: e.target.value })} />
@@ -137,41 +155,69 @@ export function Checkout() {
           </section>
 
           <section className="card p-6">
-            <h2 className="font-semibold text-stone-800">Payment method</h2>
-            <div className="mt-3 space-y-2">
-              <label className="flex items-center gap-2">
-                <input type="radio" checked={method === "razorpay"} onChange={() => setMethod("razorpay")} />
-                <span>Pay online (Razorpay) <span className="text-xs text-stone-400">— mock gateway in this demo</span></span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="radio" checked={method === "cod"} onChange={() => setMethod("cod")} />
-                <span>Cash on Delivery</span>
-              </label>
+            <div className="flex items-center gap-3">
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-600 font-display text-sm font-bold text-white">2</span>
+              <h2 className="font-display text-xl font-bold text-ink">Payment method</h2>
+            </div>
+            <div className="mt-4 space-y-3">
+              <PaymentOption
+                checked={method === "razorpay"}
+                onChange={() => setMethod("razorpay")}
+                title="Pay online (Razorpay)"
+                note="Mock gateway in this demo"
+              />
+              <PaymentOption
+                checked={method === "cod"}
+                onChange={() => setMethod("cod")}
+                title="Cash on Delivery"
+                note="Pay when your artwork arrives"
+              />
             </div>
           </section>
 
-          {error && <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
-          <button className="btn-primary px-8 py-3" disabled={busy}>
+          {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
+          <button className="btn-primary w-full py-3.5 text-base sm:w-auto sm:px-10" disabled={busy}>
             {busy ? "Placing order…" : `Place order · ${formatINR(cart?.total ?? 0)}`}
           </button>
         </form>
 
-        <aside className="card h-fit p-6">
-          <h2 className="font-semibold text-stone-800">Order summary</h2>
-          <ul className="mt-4 space-y-2 text-sm">
-            {items.map((i) => (
-              <li key={i.id} className="flex justify-between">
-                <span className="text-stone-600">{i.title} × {i.quantity}</span>
-                <span>{formatINR(i.line_total_paise / 100)}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 flex justify-between border-t border-stone-200 pt-4 font-semibold">
-            <span>Total</span>
-            <span>{formatINR(cart?.total ?? 0)}</span>
+        <aside className="lg:sticky lg:top-24 lg:self-start">
+          <div className="card p-6">
+            <h2 className="font-display text-xl font-bold text-ink">Order summary</h2>
+            <ul className="mt-4 space-y-3 text-sm">
+              {items.map((i) => (
+                <li key={i.id} className="flex justify-between gap-3">
+                  <span className="text-stone-600">{i.title} <span className="text-stone-400">× {i.quantity}</span></span>
+                  <span className="shrink-0 font-medium text-ink">{formatINR(i.line_total_paise / 100)}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-5 flex justify-between border-t border-stone-200 pt-5">
+              <span className="font-semibold text-ink">Total</span>
+              <span className="font-display text-2xl font-bold text-ink">{formatINR(cart?.total ?? 0)}</span>
+            </div>
+            <p className="mt-4 flex items-center justify-center gap-2 text-xs text-stone-400">
+              <ShieldIcon size={14} /> Secure, encrypted checkout
+            </p>
           </div>
         </aside>
       </div>
     </div>
+  );
+}
+
+function PaymentOption({ checked, onChange, title, note }) {
+  return (
+    <label
+      className={`flex cursor-pointer items-center gap-3 rounded-xl border-2 p-4 transition ${
+        checked ? "border-brand-500 bg-brand-50/60" : "border-stone-200 hover:border-brand-200"
+      }`}
+    >
+      <input type="radio" checked={checked} onChange={onChange} className="h-4 w-4 accent-brand-600" />
+      <span>
+        <span className="block font-medium text-ink">{title}</span>
+        <span className="block text-xs text-stone-400">{note}</span>
+      </span>
+    </label>
   );
 }

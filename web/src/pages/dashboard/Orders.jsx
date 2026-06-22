@@ -27,27 +27,29 @@ export function Orders() {
   return (
     <div>
       {placed && (
-        <div className="mb-4 rounded bg-green-50 px-4 py-3 text-sm text-green-700">
-          Order placed successfully! Your order id is {placed.slice(0, 8)}.
+        <div className="mb-5 rounded-2xl border border-accent-200 bg-accent-50 px-4 py-3 text-sm font-medium text-accent-700">
+          🎉 Order placed successfully! Your order id is {placed.slice(0, 8)}.
         </div>
       )}
-      <h2 className="font-semibold text-stone-800">Order history</h2>
+      <h2 className="font-display text-xl font-bold text-ink">Order history</h2>
       {orders.length === 0 ? (
-        <p className="mt-4 text-stone-500">You have no orders yet.</p>
+        <div className="mt-4 rounded-2xl border border-dashed border-stone-300 py-14 text-center text-stone-500">
+          You have no orders yet.
+        </div>
       ) : (
         <div className="mt-4 space-y-3">
           {orders.map((o) => (
-            <div key={o.id} className="card p-4">
+            <div key={o.id} className="card-hover p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-stone-800">#{o.id.slice(0, 8)}</p>
+                  <p className="font-display text-lg font-semibold text-ink">#{o.id.slice(0, 8)}</p>
                   <p className="text-sm text-stone-500">{formatDate(o.created_at)}</p>
                 </div>
                 <div className="text-right">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${statusColor[o.status] ?? "bg-stone-100"}`}>
+                  <span className={`badge capitalize ${statusColor[o.status] ?? "bg-stone-100 text-stone-600"}`}>
                     {o.status}
                   </span>
-                  <p className="mt-1 font-semibold">{formatINR(o.total)}</p>
+                  <p className="mt-1.5 font-display text-lg font-bold text-ink">{formatINR(o.total)}</p>
                 </div>
               </div>
             </div>

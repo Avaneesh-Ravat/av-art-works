@@ -20,19 +20,24 @@ export function Wishlist() {
 
   return (
     <div>
-      <h2 className="font-semibold text-stone-800">Your wishlist</h2>
+      <h2 className="font-display text-xl font-bold text-ink">Your wishlist</h2>
       {items.length === 0 ? (
-        <p className="mt-3 text-stone-500">Your wishlist is empty.</p>
+        <div className="mt-4 rounded-2xl border border-dashed border-stone-300 py-14 text-center text-stone-500">
+          Your wishlist is empty.
+        </div>
       ) : (
         <div className="mt-4 space-y-3">
           {items.map((w) => (
-            <div key={w.product_id} className="card flex items-center justify-between p-4">
-              <Link to={`/products/${w.slug}`} className="font-medium text-stone-800 hover:text-brand-700">
+            <div key={w.product_id} className="card flex items-center gap-4 p-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-100 font-display text-lg font-bold text-brand-600">
+                {w.title.charAt(0)}
+              </span>
+              <Link to={`/products/${w.slug}`} className="flex-1 font-display text-lg font-semibold text-ink transition hover:text-brand-700">
                 {w.title}
               </Link>
               <div className="flex items-center gap-4">
-                <span className="font-semibold">{formatINR(w.price)}</span>
-                <button className="text-sm text-red-500 hover:underline" onClick={() => remove.mutate(w.product_id)}>
+                <span className="font-semibold text-ink">{formatINR(w.price)}</span>
+                <button className="text-sm font-medium text-red-500 transition hover:text-red-600 hover:underline" onClick={() => remove.mutate(w.product_id)}>
                   Remove
                 </button>
               </div>

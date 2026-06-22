@@ -31,19 +31,23 @@ export function Addresses() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-semibold text-stone-800">Saved addresses</h2>
+        <h2 className="font-display text-xl font-bold text-ink">Saved addresses</h2>
         {addresses.length === 0 ? (
-          <p className="mt-3 text-stone-500">No saved addresses.</p>
+          <div className="mt-3 rounded-2xl border border-dashed border-stone-300 py-10 text-center text-stone-500">
+            No saved addresses.
+          </div>
         ) : (
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {addresses.map((a) => (
               <div key={a.id} className="card p-4 text-sm">
-                <p className="font-medium text-stone-800">{a.line1}</p>
-                {a.line2 && <p>{a.line2}</p>}
-                <p>{a.city}, {a.state} {a.pincode}</p>
-                <p className="text-stone-500">{a.country}</p>
-                {a.is_default && <span className="mt-1 inline-block text-xs text-brand-700">Default</span>}
-                <button className="mt-2 block text-xs text-red-500 hover:underline" onClick={() => remove.mutate(a.id)}>
+                <div className="flex items-start justify-between">
+                  <p className="font-medium text-ink">{a.line1}</p>
+                  {a.is_default && <span className="pill-muted">Default</span>}
+                </div>
+                {a.line2 && <p className="text-stone-600">{a.line2}</p>}
+                <p className="text-stone-600">{a.city}, {a.state} {a.pincode}</p>
+                <p className="text-stone-400">{a.country}</p>
+                <button className="mt-3 block text-xs font-medium text-red-500 transition hover:text-red-600 hover:underline" onClick={() => remove.mutate(a.id)}>
                   Remove
                 </button>
               </div>
@@ -59,7 +63,7 @@ export function Addresses() {
           add.mutate();
         }}
       >
-        <h3 className="font-semibold text-stone-800">Add address</h3>
+        <h3 className="font-display text-lg font-bold text-ink">Add address</h3>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="label">Address line 1</label>

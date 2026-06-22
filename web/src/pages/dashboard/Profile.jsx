@@ -22,8 +22,8 @@ export function Profile() {
 
   return (
     <div className="card p-6">
-      <h2 className="font-semibold text-stone-800">Profile details</h2>
-      <form onSubmit={save} className="mt-4 max-w-md space-y-4">
+      <h2 className="font-display text-xl font-bold text-ink">Profile details</h2>
+      <form onSubmit={save} className="mt-5 max-w-md space-y-4">
         <div>
           <label className="label">Email</label>
           <input className="input bg-stone-50" value={user?.email ?? ""} disabled />
@@ -36,8 +36,8 @@ export function Profile() {
           <label className="label">Phone</label>
           <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </div>
-        <button className="btn-primary px-6 py-2">Save changes</button>
-        {msg && <p className="text-sm text-brand-700">{msg}</p>}
+        <button className="btn-primary px-6 py-2.5">Save changes</button>
+        {msg && <p className="text-sm font-medium text-accent-600">{msg}</p>}
       </form>
     </div>
   );
