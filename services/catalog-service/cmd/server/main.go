@@ -92,6 +92,7 @@ func buildStorage(ctx context.Context, log *slog.Logger) storage.Storage {
 		log.Error("s3 storage init failed; falling back to mock", "err", err)
 		return storage.NewMock(config.Get("IMAGE_BASE_URL", "http://localhost:8082/uploads"), publicBase)
 	}
+
 	log.Info("storage backend: s3", "bucket", bucket, "endpoint", config.Get("S3_ENDPOINT", "aws"), "public_base", publicBase)
 	return s3store
 }
