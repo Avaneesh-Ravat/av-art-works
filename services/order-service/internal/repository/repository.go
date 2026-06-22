@@ -218,7 +218,50 @@ func (r *Repository) queryOrders(ctx context.Context, q string, args ...any) ([]
 		_ = json.Unmarshal(addrJSON, &o.Address)
 		out = append(out, o)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := r.attachItems(ctx, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// attachItems batch-loads order items for the given orders in a single query so
+// list endpoints can show line items without an N+1 query per order.
+func (r *Repository) attachItems(ctx context.Context, orders []domain.Order) error {
+	if len(orders) == 0 {
+		return nil
+	}
+	ids := make([]string, len(orders))
+	for i := range orders {
+		ids[i] = orders[i].ID
+	}
+	rows, err := r.pool.Query(ctx,
+		`SELECT order_id, id, product_id, title_snapshot, price_paise, quantity
+		 FROM order_items WHERE order_id = ANY($1)`, ids)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	byOrder := make(map[string][]domain.OrderItem, len(orders))
+	for rows.Next() {
+		var orderID string
+		var it domain.OrderItem
+		if err := rows.Scan(&orderID, &it.ID, &it.ProductID, &it.Title, &it.PricePaise, &it.Quantity); err != nil {
+			return err
+		}
+		it.Price = float64(it.PricePaise) / 100
+		byOrder[orderID] = append(byOrder[orderID], it)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for i := range orders {
+		orders[i].Items = byOrder[orders[i].ID]
+	}
+	return nil
 }
 
 // UpdateStatus sets the order status.

@@ -87,6 +87,30 @@
   }
 }
 
+@media print {
+  body {
+    background: #fff;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #receipt,
+  #receipt * {
+    visibility: visible;
+  }
+  #receipt {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: none;
+    box-shadow: none;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
 @layer utilities {
   .delay-100 {
     animation-delay: 0.1s;

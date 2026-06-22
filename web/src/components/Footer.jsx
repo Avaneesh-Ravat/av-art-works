@@ -19,7 +19,6 @@ const socialLinks = [
 export function Footer() {
   const { profile } = useSiteProfileContent();
   const links = socialLinks.filter((s) => profile[s.key]?.trim());
-  const year = new Date().getFullYear();
 
   return (
     <footer id="contact" className="mt-20 scroll-mt-24">
@@ -117,13 +116,6 @@ export function Footer() {
               </div>
             </div>
           )}
-        </div>
-
-        <div className="border-t border-stone-200">
-          <div className="section flex flex-col items-center justify-between gap-2 py-6 text-xs text-stone-400 sm:flex-row">
-            <p>© {year} {profile.site_name}. All rights reserved.</p>
-            <p>Handcrafted with care in India.</p>
-          </div>
         </div>
       </div>
     </footer>

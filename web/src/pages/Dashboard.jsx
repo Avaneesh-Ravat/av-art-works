@@ -2,6 +2,7 @@ import { NavLink, Route, Routes } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { Profile } from "./dashboard/Profile";
 import { Orders } from "./dashboard/Orders";
+import { OrderDetail } from "./dashboard/OrderDetail";
 import { Addresses } from "./dashboard/Addresses";
 import { Wishlist } from "./dashboard/Wishlist";
 import { HeartIcon, MapPinIcon, PackageIcon, UserIcon } from "../components/icons";
@@ -54,6 +55,7 @@ export function Dashboard() {
           <Routes>
             <Route index element={<Profile />} />
             <Route path="orders" element={<Orders />} />
+            <Route path="orders/:id" element={<OrderDetail />} />
             <Route path="addresses" element={<Addresses />} />
             <Route path="wishlist" element={<Wishlist />} />
           </Routes>

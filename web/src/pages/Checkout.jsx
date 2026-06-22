@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../lib/api";
-import { useCart } from "../lib/hooks";
+import { useCart, useSiteProfileContent } from "../lib/hooks";
 import { formatINR } from "../lib/format";
 import { Spinner } from "../components/Spinner";
-import { MapPinIcon, ShieldIcon } from "../components/icons";
+import { MailIcon, MapPinIcon, ShieldIcon, WhatsappIcon } from "../components/icons";
 
 function sameAddress(a, b) {
   return (
@@ -34,6 +34,7 @@ export function Checkout() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: cart, isLoading } = useCart();
+  const { profile } = useSiteProfileContent();
 
   const { data: saved } = useQuery({
     queryKey: ["addresses"],
@@ -41,7 +42,9 @@ export function Checkout() {
   });
 
   const [addr, setAddr] = useState({ line1: "", line2: "", city: "", state: "", pincode: "" });
-  const [method, setMethod] = useState("razorpay");
+  // "manual" = we share UPI/bank details over WhatsApp/email; "cod" = cash on delivery.
+  // Both create a pending order; online (Razorpay) is intentionally disabled until configured.
+  const [method, setMethod] = useState("manual");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -55,19 +58,12 @@ export function Checkout() {
     try {
       const order = await api.post("/v1/orders", { shipping_address: { ...addr, country: "India" } });
 
-      const pay = await api.post("/v1/payments", {
+      // Manual (UPI/bank via WhatsApp/email) and COD both record a pending payment.
+      // No online gateway call until Razorpay is configured.
+      await api.post("/v1/payments", {
         order_id: order.id,
-        method,
+        method: "cod",
       });
-
-      if (method === "razorpay") {
-        const sim = await api.post(`/v1/payments/${pay.payment.id}/simulate`);
-        await api.post(`/v1/payments/verify`, {
-          payment_id: pay.payment.id,
-          razorpay_payment_id: sim.razorpay_payment_id,
-          razorpay_signature: sim.razorpay_signature,
-        });
-      }
 
       qc.invalidateQueries({ queryKey: ["cart"] });
       qc.invalidateQueries({ queryKey: ["orders"] });
@@ -79,7 +75,7 @@ export function Checkout() {
       } catch {
         // Order succeeded; address save is best-effort.
       }
-      navigate(`/dashboard/orders?placed=${order.id}`);
+      navigate(`/dashboard/orders/${order.id}?placed=1`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Checkout failed");
     } finally {
@@ -161,10 +157,10 @@ export function Checkout() {
             </div>
             <div className="mt-4 space-y-3">
               <PaymentOption
-                checked={method === "razorpay"}
-                onChange={() => setMethod("razorpay")}
-                title="Pay online (Razorpay)"
-                note="Mock gateway in this demo"
+                checked={method === "manual"}
+                onChange={() => setMethod("manual")}
+                title="Direct payment (UPI / Bank transfer)"
+                note="Place your order, then we'll share payment details over WhatsApp or email and confirm it."
               />
               <PaymentOption
                 checked={method === "cod"}
@@ -173,6 +169,31 @@ export function Checkout() {
                 note="Pay when your artwork arrives"
               />
             </div>
+
+            {method === "manual" && (
+              <div className="mt-4 rounded-xl bg-brand-50/70 p-4 text-sm text-stone-600">
+                <p className="font-medium text-ink">How it works</p>
+                <ol className="mt-2 list-decimal space-y-1 pl-5">
+                  <li>Place your order — it’ll be reserved for you.</li>
+                  <li>We’ll share UPI / bank details on the next screen.</li>
+                  <li>Send payment via WhatsApp/email and we’ll confirm &amp; ship.</li>
+                </ol>
+                {(profile.phone || profile.email) && (
+                  <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-stone-500">
+                    {profile.phone && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <WhatsappIcon size={14} className="text-accent-600" /> {profile.phone}
+                      </span>
+                    )}
+                    {profile.email && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <MailIcon size={14} className="text-brand-500" /> {profile.email}
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
           </section>
 
           {error && <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
