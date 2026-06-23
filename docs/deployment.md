@@ -74,22 +74,28 @@ MEDIA_PUBLIC_BASE_URL=/api/v1/media
 ## 3. Deploy
 
 Push to `main` (CI runs first; deploy runs on success), or trigger **Deploy**
-manually from the Actions tab. The pipeline rsyncs the repo to the box and runs:
+manually from the Actions tab. The pipeline:
 
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
-```
+1. **Builds all app images in GitHub Actions** (linux/arm64) and pushes them to
+   GHCR (`ghcr.io/<owner>/av-art-works-*`).
+2. Rsyncs compose/config to the box (no compiling on the server).
+3. Pulls the tagged images and runs `docker compose up -d`.
 
-First boot builds all images and runs DB migrations automatically (each service
-migrates its own schema on start).
+This keeps heavy Go/npm builds off the small EC2 host so deploys do not wedge SSH.
+
+First boot after provisioning still needs one successful deploy so images exist in
+GHCR. DB migrations run automatically when each service starts.
 
 ### Manual deploy (no GitHub Actions)
 
+Log into GHCR on the box (needs a GitHub PAT with `read:packages`), set
+`IMAGE_TAG` and `GHCR_OWNER` in `/opt/avartworks/.env`, then:
+
 ```bash
 ssh ec2-user@<public_ip>
-# put your .env in /opt/avartworks/.env, then:
 cd /opt/avartworks
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env pull
+docker compose -f docker-compose.prod.yml --env-file .env up -d
 ```
 
 ## 4. Domain + HTTPS (Cloudflare, free)

@@ -11,17 +11,38 @@ on:
 
 concurrency:
   group: deploy-production
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
     name: Build & deploy to EC2
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     # For workflow_run, only deploy when CI actually passed. Manual runs always proceed.
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     environment: production
+    env:
+      IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ARM images
+        env:
+          GHCR_OWNER: ${{ github.repository_owner }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+        run: bash deploy/build-and-push.sh
 
       - name: Start SSH agent
         uses: webfactory/ssh-agent@v0.9.0
@@ -31,10 +52,26 @@ jobs:
       - name: Trust the host key
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+          for attempt in 1 2 3 4 5; do
+            if ssh-keyscan -H -T 15 "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null \
+               && grep -q "${{ secrets.SSH_HOST }}" ~/.ssh/known_hosts; then
+              echo "Host key collected on attempt ${attempt}"
+              exit 0
+            fi
+            echo "ssh-keyscan attempt ${attempt} failed, retrying in 10s..."
+            sleep 10
+          done
+          echo "Could not collect host key for ${{ secrets.SSH_HOST }}"
+          exit 1
 
       - name: Write production .env
-        run: printf '%s' "${{ secrets.PROD_ENV }}" > .env
+        run: |
+          owner="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          printf '%s\n' "${{ secrets.PROD_ENV }}" > .env
+          {
+            echo "IMAGE_TAG=${{ env.IMAGE_TAG }}"
+            echo "GHCR_OWNER=${owner}"
+          } >> .env
 
       - name: Ensure remote directory exists
         run: |
@@ -49,15 +86,22 @@ jobs:
             --exclude 'web/dist' \
             ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/avartworks/"
 
-      - name: Build & restart the stack
+      - name: Log in to GHCR on the server
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin"
+
+      - name: Pull & restart the stack
         env:
           SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
         run: |
           SSH="ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 $SSH_TARGET"
 
-          # Launch the build detached so it survives this SSH session (heavy
-          # Go builds on a small box otherwise drop the connection mid-build).
-          $SSH 'cd /opt/avartworks && rm -f deploy.exit && chmod +x deploy/remote-up.sh && setsid bash deploy/remote-up.sh > deploy.log 2>&1 < /dev/null & echo launched'
+          # Kill any orphaned build from a prior timed-out deploy (safe: no volumes touched).
+          $SSH 'bash /opt/avartworks/deploy/stop-stale-deploy.sh'
+
+          # Pull + up is lightweight on the host; still run detached so SSH drops are harmless.
+          $SSH 'cd /opt/avartworks && rm -f deploy.exit && chmod +x deploy/remote-up.sh deploy/stop-stale-deploy.sh && setsid bash deploy/remote-up.sh > deploy.log 2>&1 < /dev/null & echo launched'
 
           # Poll for completion with short-lived connections (up to ~20 min).
           for i in $(seq 1 120); do
@@ -72,5 +116,5 @@ jobs:
               exit "$status"
             fi
           done
-          echo "Timed out waiting for the build to finish"
+          echo "Timed out waiting for the deploy to finish"
           exit 1
