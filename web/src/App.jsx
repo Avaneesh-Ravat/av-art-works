@@ -8,6 +8,7 @@ import { Login } from "./pages/Login";
 import { Signup } from "./pages/Signup";
 import { ForgotPassword } from "./pages/ForgotPassword";
 import { ResetPassword } from "./pages/ResetPassword";
+import { PASSWORD_RESET_ENABLED } from "./lib/features";
 import { CartPage } from "./pages/Cart";
 import { Checkout } from "./pages/Checkout";
 import { Dashboard } from "./pages/Dashboard";
@@ -23,8 +24,12 @@ export default function App() {
         <Route path="/products/:slug" element={<ProductDetail />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
+        {PASSWORD_RESET_ENABLED && (
+          <>
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+          </>
+        )}
         <Route path="/cart" element={<CartPage />} />
         <Route
           path="/checkout"

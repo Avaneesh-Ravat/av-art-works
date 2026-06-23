@@ -8,12 +8,21 @@ export function ResetPassword() {
   const navigate = useNavigate();
   const [token, setToken] = useState(params.get("token") ?? "");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
     try {
       await api.post("/v1/auth/reset-password", { token, new_password: password });
       setDone(true);
@@ -39,6 +48,18 @@ export function ResetPassword() {
           <div>
             <label className="label">New password</label>
             <input className="input" type="password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} />
+            <p className="mt-1.5 text-xs text-stone-400">At least 8 characters.</p>
+          </div>
+          <div>
+            <label className="label">Confirm password</label>
+            <input
+              className="input"
+              type="password"
+              required
+              minLength={8}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
           </div>
           <button className="btn-primary w-full py-3">Update password</button>
           <p className="text-center text-sm">

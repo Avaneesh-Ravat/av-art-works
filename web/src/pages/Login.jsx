@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { ApiError } from "../lib/api";
+import { PASSWORD_RESET_ENABLED } from "../lib/features";
 import { AuthShell } from "../components/AuthShell";
 
 export function Login() {
@@ -43,8 +44,10 @@ export function Login() {
         <button className="btn-primary w-full py-3" disabled={busy}>
           {busy ? "Signing in…" : "Sign in"}
         </button>
-        <div className="flex justify-between text-sm">
-          <Link to="/forgot-password" className="link-underline">Forgot password?</Link>
+        <div className={`flex text-sm ${PASSWORD_RESET_ENABLED ? "justify-between" : "justify-end"}`}>
+          {PASSWORD_RESET_ENABLED && (
+            <Link to="/forgot-password" className="link-underline">Forgot password?</Link>
+          )}
           <Link to="/signup" className="link-underline">Create account</Link>
         </div>
       </form>

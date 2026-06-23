@@ -7,7 +7,7 @@ import { AuthShell } from "../components/AuthShell";
 export function Signup() {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ full_name: "", email: "", phone: "", password: "" });
+  const [form, setForm] = useState({ full_name: "", email: "", phone: "", password: "", confirm_password: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -18,6 +18,10 @@ export function Signup() {
     setError("");
     if (form.password.length < 8) {
       setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (form.password !== form.confirm_password) {
+      setError("Passwords do not match.");
       return;
     }
     setBusy(true);
@@ -51,6 +55,16 @@ export function Signup() {
           <label className="label">Password</label>
           <input className="input" type="password" required value={form.password} onChange={update("password")} />
           <p className="mt-1.5 text-xs text-stone-400">At least 8 characters.</p>
+        </div>
+        <div>
+          <label className="label">Confirm password</label>
+          <input
+            className="input"
+            type="password"
+            required
+            value={form.confirm_password}
+            onChange={update("confirm_password")}
+          />
         </div>
         <button className="btn-primary w-full py-3" disabled={busy}>
           {busy ? "Creating…" : "Create account"}
