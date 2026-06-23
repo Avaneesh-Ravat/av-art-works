@@ -1,25 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError } from "../lib/api";
-
-export const emptyAddress = {
-  line1: "",
-  line2: "",
-  locality: "",
-  city: "",
-  state: "",
-  pincode: "",
-};
-
-export function addressIsComplete(value, lookup) {
-  return (
-    value.line1.trim() !== "" &&
-    value.locality.trim() !== "" &&
-    value.city.trim() !== "" &&
-    value.state.trim() !== "" &&
-    value.pincode.length === 6 &&
-    lookup?.pincode === value.pincode
-  );
-}
+import { addressIsComplete } from "../lib/address";
 
 export function AddressForm({ value, onChange, idPrefix = "addr" }) {
   const [lookup, setLookup] = useState(null);

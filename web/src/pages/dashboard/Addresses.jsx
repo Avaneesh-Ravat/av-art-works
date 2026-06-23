@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../../lib/api";
 import { Spinner } from "../../components/Spinner";
-import { AddressForm, emptyAddress } from "../../components/AddressForm";
+import { AddressForm } from "../../components/AddressForm";
+import { emptyAddress } from "../../lib/address";
 
 export function Addresses() {
   const qc = useQueryClient();

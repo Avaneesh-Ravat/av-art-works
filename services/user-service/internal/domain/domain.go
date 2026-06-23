@@ -8,11 +8,11 @@ import (
 
 // Domain-level errors mapped to HTTP statuses in the handler layer.
 var (
-	ErrNotFound        = errors.New("not found")
-	ErrEmailExists     = errors.New("email already registered")
-	ErrInvalidCreds    = errors.New("invalid credentials")
-	ErrInvalidToken    = errors.New("invalid or expired token")
-	ErrInvalidAddress  = errors.New("invalid address")
+	ErrNotFound       = errors.New("not found")
+	ErrEmailExists    = errors.New("email already registered")
+	ErrInvalidCreds   = errors.New("invalid credentials")
+	ErrInvalidToken   = errors.New("invalid or expired token")
+	ErrInvalidAddress = errors.New("invalid address")
 )
 
 // User is a registered account.

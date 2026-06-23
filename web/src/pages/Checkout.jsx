@@ -5,7 +5,8 @@ import { api, ApiError } from "../lib/api";
 import { useCart, useSiteProfileContent } from "../lib/hooks";
 import { formatINR } from "../lib/format";
 import { Spinner } from "../components/Spinner";
-import { AddressForm, emptyAddress } from "../components/AddressForm";
+import { AddressForm } from "../components/AddressForm";
+import { emptyAddress } from "../lib/address";
 import { MailIcon, MapPinIcon, ShieldIcon, WhatsappIcon } from "../components/icons";
 
 function sameAddress(a, b) {

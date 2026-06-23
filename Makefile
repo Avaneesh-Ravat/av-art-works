@@ -15,16 +15,16 @@ tidy:
 	go mod tidy
 
 build:
-	go build ./...
+	go build ./pkg/... ./services/...
 
 test:
-	go test ./...
+	go test ./pkg/... ./services/...
 
 fmt:
 	gofmt -w ./pkg ./services
 
 lint:
-	go vet ./...
+	go vet ./pkg/... ./services/...
 
 run-user:
 	go run ./services/user-service/cmd/server
