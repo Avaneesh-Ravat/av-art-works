@@ -25,8 +25,85 @@ jobs:
     environment: production
     env:
       IMAGE_TAG: ${{ github.event.workflow_run.head_sha || github.sha }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Normalize SSH target
+        run: |
+          host="$(printf '%s' "$SSH_HOST" | tr -d '[:space:]')"
+          user="$(printf '%s' "$SSH_USER" | tr -d '[:space:]')"
+          echo "SSH_HOST=${host}" >> "$GITHUB_ENV"
+          echo "SSH_USER=${user}" >> "$GITHUB_ENV"
+
+      # SSH first — fail in seconds if the host is unreachable, before spending
+      # ~10 minutes building and pushing images.
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Trust the host key
+        run: |
+          set -euo pipefail
+          host="$(printf '%s' "$SSH_HOST" | tr -d '[:space:]')"
+          user="$(printf '%s' "$SSH_USER" | tr -d '[:space:]')"
+
+          if [ -z "$host" ]; then
+            echo "::error::SSH_HOST is empty. Set it under Settings → Environments → production → Secrets."
+            exit 1
+          fi
+          if [ -z "$user" ]; then
+            echo "::error::SSH_USER is empty (expected ec2-user)."
+            exit 1
+          fi
+          if [[ "$host" == *"@"* ]]; then
+            echo "::error::SSH_HOST must be the IP or hostname only, not user@host."
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          : > ~/.ssh/known_hosts
+
+          {
+            echo "Host ${host}"
+            echo "  User ${user}"
+            echo "  ConnectTimeout 15"
+            echo "  ServerAliveInterval 30"
+            echo "  ServerAliveCountMax 10"
+            echo "  StrictHostKeyChecking accept-new"
+          } >> ~/.ssh/config
+          chmod 600 ~/.ssh/config
+
+          echo "Checking TCP port 22 on ${host}..."
+          if ! nc -z -w 10 "$host" 22; then
+            echo "::error::Port 22 is not reachable on ${host}. Check SSH_HOST matches \`terraform output public_ip\` and the instance is running."
+            exit 1
+          fi
+
+          for attempt in 1 2 3 4 5; do
+            log="$(mktemp)"
+            # ssh-keyscan -H hashes hostnames; validate with a key-line grep, not the IP.
+            if ssh-keyscan -H -T 15 -p 22 "$host" >> ~/.ssh/known_hosts 2>"$log"; then
+              if grep -qE '^(\||ssh-(ed25519|rsa)|ecdsa-sha2)' ~/.ssh/known_hosts; then
+                echo "Host key collected on attempt ${attempt}"
+                rm -f "$log"
+                exit 0
+              fi
+            fi
+            echo "ssh-keyscan attempt ${attempt} failed:"
+            cat "$log" || true
+            rm -f "$log"
+            sleep 10
+          done
+
+          echo "::error::sshd on ${host} accepted TCP but did not send an SSH host key (banner timeout). The instance may be out of memory — reboot it in the AWS console, then re-run deploy."
+          exit 1
+
+      - name: Verify SSH login
+        run: ssh "$SSH_HOST" 'echo "ssh ok: $(hostname)"'
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -44,26 +121,6 @@ jobs:
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
         run: bash deploy/build-and-push.sh
 
-      - name: Start SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Trust the host key
-        run: |
-          mkdir -p ~/.ssh
-          for attempt in 1 2 3 4 5; do
-            if ssh-keyscan -H -T 15 "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null \
-               && grep -q "${{ secrets.SSH_HOST }}" ~/.ssh/known_hosts; then
-              echo "Host key collected on attempt ${attempt}"
-              exit 0
-            fi
-            echo "ssh-keyscan attempt ${attempt} failed, retrying in 10s..."
-            sleep 10
-          done
-          echo "Could not collect host key for ${{ secrets.SSH_HOST }}"
-          exit 1
-
       - name: Write production .env
         run: |
           owner="$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
@@ -75,7 +132,7 @@ jobs:
 
       - name: Ensure remote directory exists
         run: |
-          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+          ssh "$SSH_HOST" \
             'sudo mkdir -p /opt/avartworks && sudo chown -R "$USER":"$USER" /opt/avartworks'
 
       - name: Sync repository to the server
@@ -84,18 +141,16 @@ jobs:
             --exclude '.git' \
             --exclude 'node_modules' \
             --exclude 'web/dist' \
-            ./ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/avartworks/"
+            ./ "${SSH_USER}@${SSH_HOST}:/opt/avartworks/"
 
       - name: Log in to GHCR on the server
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+          echo "${{ secrets.GITHUB_TOKEN }}" | ssh "$SSH_HOST" \
             "docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin"
 
       - name: Pull & restart the stack
-        env:
-          SSH_TARGET: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
         run: |
-          SSH="ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=10 $SSH_TARGET"
+          SSH="ssh $SSH_HOST"
 
           # Kill any orphaned build from a prior timed-out deploy (safe: no volumes touched).
           $SSH 'bash /opt/avartworks/deploy/stop-stale-deploy.sh'
