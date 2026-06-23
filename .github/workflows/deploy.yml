@@ -36,6 +36,11 @@ jobs:
       - name: Write production .env
         run: printf '%s' "${{ secrets.PROD_ENV }}" > .env
 
+      - name: Ensure remote directory exists
+        run: |
+          ssh "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            'sudo mkdir -p /opt/avartworks && sudo chown -R "$USER":"$USER" /opt/avartworks'
+
       - name: Sync repository to the server
         run: |
           rsync -az --delete \
