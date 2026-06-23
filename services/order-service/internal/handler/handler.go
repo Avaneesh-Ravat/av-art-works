@@ -57,6 +57,7 @@ func (h *Handler) Routes(corsOrigins []string) http.Handler {
 			r.Group(func(r chi.Router) {
 				r.Use(httpx.RequireAdmin)
 				r.Get("/admin/orders", h.listAllOrders)
+				r.Get("/admin/orders/{id}", h.getAdminOrder)
 				r.Patch("/admin/orders/{id}/status", h.updateStatus)
 			})
 		})
@@ -274,6 +275,19 @@ func (h *Handler) listAllOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.JSON(w, http.StatusOK, map[string]any{"items": orders})
+}
+
+func (h *Handler) getAdminOrder(w http.ResponseWriter, r *http.Request) {
+	order, err := h.svc.GetOrderByID(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			httpx.Error(w, http.StatusNotFound, "not_found", "order not found")
+			return
+		}
+		httpx.Error(w, http.StatusInternalServerError, "internal", "could not load order")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, order)
 }
 
 func (h *Handler) updateStatus(w http.ResponseWriter, r *http.Request) {

@@ -3,6 +3,7 @@ import { AdminAnalytics } from "./AdminAnalytics";
 import { AdminProducts } from "./AdminProducts";
 import { AdminCategories } from "./AdminCategories";
 import { AdminOrders } from "./AdminOrders";
+import { AdminOrderDetail } from "./AdminOrderDetail";
 import { AdminSiteProfile } from "./AdminSiteProfile";
 import { AdminAboutArtist } from "./AdminAboutArtist";
 
@@ -40,6 +41,7 @@ export function AdminDashboard() {
             <Route path="products" element={<AdminProducts />} />
             <Route path="categories" element={<AdminCategories />} />
             <Route path="orders" element={<AdminOrders />} />
+            <Route path="orders/:id" element={<AdminOrderDetail />} />
             <Route path="about-artist" element={<AdminAboutArtist />} />
             <Route path="site-profile" element={<AdminSiteProfile />} />
           </Routes>
