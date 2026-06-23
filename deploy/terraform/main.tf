@@ -215,6 +215,14 @@ resource "aws_instance" "app" {
     encrypted   = true
   }
 
+  # The AMI data source tracks "most_recent", so a newer Amazon Linux image would
+  # otherwise force-replace this instance on a routine `terraform apply` — wiping
+  # the on-box Docker volumes (Postgres data). Ignore AMI drift so the instance is
+  # only rebuilt intentionally (e.g. taint/replace). Networking + DB data stay put.
+  lifecycle {
+    ignore_changes = [ami]
+  }
+
   tags = merge(local.tags, { Name = "${var.project}-app" })
 }
 

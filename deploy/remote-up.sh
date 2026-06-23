@@ -13,7 +13,10 @@ if [ "$code" -eq 0 ]; then
   docker compose -f docker-compose.prod.yml --env-file .env restart web
 fi
 
+# Reclaim space so repeated builds don't fill the root disk over time (a full
+# disk previously wedged the host). Prune dangling images and stale build cache.
 docker image prune -f >/dev/null 2>&1 || true
+docker builder prune -f --filter "until=168h" >/dev/null 2>&1 || true
 
 echo "$code" > /opt/avartworks/deploy.exit
 exit "$code"
