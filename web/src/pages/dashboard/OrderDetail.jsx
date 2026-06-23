@@ -198,7 +198,7 @@ export function OrderDetail() {
         </div>
 
         <p className="mt-8 border-t border-stone-200 pt-6 text-center text-sm text-stone-400">
-          Thank you for supporting handmade art. — AV Art Works
+          Thank you for supporting handmade art. - AV Art Works
         </p>
       </div>
     </div>

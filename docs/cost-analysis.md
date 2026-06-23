@@ -43,12 +43,12 @@ served through Cloudflare's free CDN.
 | **Total** | **~₹9,000–12,500 / month** |
 
 The two biggest avoidable costs there are the **NAT Gateway** and running **5
-always-on tasks** — neither is justified at 100 users/hour.
+always-on tasks**, neither is justified at 100 users/hour.
 
 ## When to graduate from the single host
 
 Move pieces out only when traffic/availability needs it, in this order:
-1. **Postgres → RDS** (managed backups, multi-AZ) — first thing to externalise.
+1. **Postgres → RDS** (managed backups, multi-AZ), first thing to externalise.
 2. **Redis → ElastiCache**.
 3. **Split services onto ECS/Fargate + ALB** once a single box is saturated.
 

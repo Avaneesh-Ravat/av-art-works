@@ -128,6 +128,10 @@ func (h *Handler) addToCart(w http.ResponseWriter, r *http.Request) {
 			httpx.Error(w, http.StatusBadRequest, "product_invalid", "product is unavailable")
 			return
 		}
+		if errors.Is(err, domain.ErrOutOfStock) {
+			httpx.Error(w, http.StatusConflict, "out_of_stock", "not enough stock available")
+			return
+		}
 		httpx.Error(w, http.StatusInternalServerError, "internal", "could not add to cart")
 		return
 	}
@@ -145,6 +149,14 @@ func (h *Handler) updateCartItem(w http.ResponseWriter, r *http.Request) {
 	if err := h.svc.UpdateCartItem(r.Context(), uid, chi.URLParam(r, "id"), req.Quantity); err != nil {
 		if errors.Is(err, domain.ErrNotFound) {
 			httpx.Error(w, http.StatusNotFound, "not_found", "cart item not found")
+			return
+		}
+		if errors.Is(err, domain.ErrOutOfStock) {
+			httpx.Error(w, http.StatusConflict, "out_of_stock", "not enough stock available")
+			return
+		}
+		if errors.Is(err, domain.ErrProductInvalid) {
+			httpx.Error(w, http.StatusBadRequest, "product_invalid", "product is unavailable")
 			return
 		}
 		httpx.Error(w, http.StatusInternalServerError, "internal", "could not update item")

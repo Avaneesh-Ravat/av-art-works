@@ -40,7 +40,7 @@ func (h *Handler) Routes(corsOrigins []string) http.Handler {
 	})
 	httpx.MountSwagger(r, docs.OpenAPISpec)
 
-	// Public media (product images) — path prefix avoids chi wildcard quirks in nested groups.
+	// Public media (product images); path prefix avoids chi wildcard quirks in nested groups.
 	r.HandleFunc("/api/v1/media/*", h.serveMedia)
 
 	r.Route("/api/v1", func(r chi.Router) {

@@ -58,7 +58,7 @@ export function Products() {
             Gallery
           </h1>
           <p className="mt-3 max-w-lg text-stone-600">
-            Browse original handcrafted artworks — filter by medium and find a piece that speaks to you.
+            Browse original handcrafted artworks. Filter by medium and find a piece that speaks to you.
           </p>
         </div>
       </section>

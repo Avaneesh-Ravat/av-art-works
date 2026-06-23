@@ -133,7 +133,7 @@ export function AdminAboutArtist() {
                   }}
                 />
                 {imageFile && (
-                  <p className="mt-1 text-xs text-stone-500">{imageFile.name} — uploaded on save.</p>
+                  <p className="mt-1 text-xs text-stone-500">{imageFile.name} (uploaded on save).</p>
                 )}
               </div>
 

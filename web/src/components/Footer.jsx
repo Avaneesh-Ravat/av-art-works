@@ -32,7 +32,7 @@ export function Footer() {
               Bring home a piece made by hand
             </h2>
             <p className="mx-auto mt-3 max-w-xl text-brand-100">
-              Original resin, texture and acrylic art — or commission something uniquely yours.
+              Original resin, texture and acrylic art, or commission something uniquely yours.
             </p>
             <Link
               to="/products"

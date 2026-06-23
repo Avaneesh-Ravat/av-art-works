@@ -184,7 +184,7 @@ export function Landing() {
           </div>
         ) : (
           <p className="mt-8 rounded-2xl border border-dashed border-stone-300 py-12 text-center text-stone-500">
-            New pieces are on the way — check back soon.
+            New pieces are on the way, check back soon.
           </p>
         )}
       </section>

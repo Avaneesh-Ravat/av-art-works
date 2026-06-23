@@ -60,7 +60,7 @@ func (s *Service) GetCart(ctx context.Context, userID string) (*domain.Cart, err
 	return cart, nil
 }
 
-// AddToCart validates the product then adds it to the cart.
+// AddToCart validates the product and available stock, then adds to the cart.
 func (s *Service) AddToCart(ctx context.Context, userID, productID string, qty int) error {
 	p, err := s.catalog.GetProduct(ctx, productID)
 	if err != nil {
@@ -76,16 +76,66 @@ func (s *Service) AddToCart(ctx context.Context, userID, productID string, qty i
 	if err != nil {
 		return err
 	}
+	currentQty, err := s.cartQtyForProduct(ctx, cartID, productID)
+	if err != nil {
+		return err
+	}
+	if currentQty+qty > p.Stock {
+		return domain.ErrOutOfStock
+	}
 	return s.repo.AddToCart(ctx, cartID, productID, qty)
 }
 
-// UpdateCartItem sets a line quantity.
+// UpdateCartItem sets a line quantity, removing the line when qty is zero.
 func (s *Service) UpdateCartItem(ctx context.Context, userID, itemID string, qty int) error {
 	cartID, err := s.repo.GetOrCreateCart(ctx, userID)
 	if err != nil {
 		return err
 	}
+	if qty <= 0 {
+		return s.repo.DeleteCartItem(ctx, cartID, itemID)
+	}
+	item, err := s.findCartItem(ctx, cartID, itemID)
+	if err != nil {
+		return err
+	}
+	p, err := s.catalog.GetProduct(ctx, item.ProductID)
+	if err != nil {
+		if err == client.ErrProductNotFound {
+			return domain.ErrProductInvalid
+		}
+		return err
+	}
+	if qty > p.Stock {
+		return domain.ErrOutOfStock
+	}
 	return s.repo.UpdateCartItem(ctx, cartID, itemID, qty)
+}
+
+func (s *Service) cartQtyForProduct(ctx context.Context, cartID, productID string) (int, error) {
+	raw, err := s.repo.GetCartItems(ctx, cartID)
+	if err != nil {
+		return 0, err
+	}
+	for _, ri := range raw {
+		if ri.ProductID == productID {
+			return ri.Quantity, nil
+		}
+	}
+	return 0, nil
+}
+
+func (s *Service) findCartItem(ctx context.Context, cartID, itemID string) (*repository.RawCartItem, error) {
+	raw, err := s.repo.GetCartItems(ctx, cartID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range raw {
+		if raw[i].ID == itemID {
+			return &raw[i], nil
+		}
+	}
+	return nil, domain.ErrNotFound
 }
 
 // RemoveCartItem removes a line.

@@ -2,7 +2,7 @@
 
 This deploys the whole stack (5 Go services + Postgres + Redis + nginx/SPA) onto
 a **single Graviton EC2 host** using Docker Compose, with product images in a
-private **S3** bucket. It is the cost-optimised setup (~₹1,350–1,450/month — see
+private **S3** bucket. It is the cost-optimised setup (~₹1,350–1,450/month; see
 [`cost-analysis.md`](./cost-analysis.md)).
 
 ```

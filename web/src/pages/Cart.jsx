@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { useAuth } from "../lib/auth";
 import { useCart } from "../lib/hooks";
 import { formatINR } from "../lib/format";
@@ -12,15 +13,31 @@ export function CartPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: cart, isLoading } = useCart();
+  const [error, setError] = useState("");
 
   const updateQty = useMutation({
     mutationFn: (v) => api.patch(`/v1/cart/items/${v.id}`, { quantity: v.quantity }),
-    onSuccess: (data) => qc.setQueryData(["cart"], data),
+    onSuccess: (data) => {
+      setError("");
+      qc.setQueryData(["cart"], data);
+    },
+    onError: (e) => setError(e instanceof ApiError ? e.message : "Could not update quantity."),
   });
   const remove = useMutation({
     mutationFn: (id) => api.del(`/v1/cart/items/${id}`),
-    onSuccess: (data) => qc.setQueryData(["cart"], data),
+    onSuccess: (data) => {
+      setError("");
+      qc.setQueryData(["cart"], data);
+    },
   });
+
+  const decreaseQty = (item) => {
+    if (item.quantity <= 1) {
+      remove.mutate(item.id);
+      return;
+    }
+    updateQty.mutate({ id: item.id, quantity: item.quantity - 1 });
+  };
 
   if (!user) {
     return (
@@ -49,6 +66,9 @@ export function CartPage() {
     <div className="section py-10">
       <h1 className="font-display text-4xl font-black tracking-tight text-ink">Your cart</h1>
       <p className="mt-1 text-stone-500">{items.length} {items.length === 1 ? "item" : "items"} ready for checkout</p>
+      {error && (
+        <p className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>
+      )}
 
       <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
@@ -72,8 +92,8 @@ export function CartPage() {
               <div className="flex items-center gap-1 rounded-full border border-stone-200 bg-white p-1">
                 <button
                   className="flex h-8 w-8 items-center justify-center rounded-full text-lg text-stone-600 transition hover:bg-brand-50 hover:text-brand-700 disabled:opacity-40"
-                  disabled={item.quantity <= 1}
-                  onClick={() => updateQty.mutate({ id: item.id, quantity: item.quantity - 1 })}
+                  disabled={updateQty.isPending || remove.isPending}
+                  onClick={() => decreaseQty(item)}
                 >
                   −
                 </button>

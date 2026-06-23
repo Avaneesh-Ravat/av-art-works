@@ -174,7 +174,7 @@ export function Checkout() {
               <div className="mt-4 rounded-xl bg-brand-50/70 p-4 text-sm text-stone-600">
                 <p className="font-medium text-ink">How it works</p>
                 <ol className="mt-2 list-decimal space-y-1 pl-5">
-                  <li>Place your order — it’ll be reserved for you.</li>
+                  <li>Place your order, and it’ll be reserved for you.</li>
                   <li>We’ll share UPI / bank details on the next screen.</li>
                   <li>Send payment via WhatsApp/email and we’ll confirm &amp; ship.</li>
                 </ol>
