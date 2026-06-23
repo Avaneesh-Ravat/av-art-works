@@ -4,6 +4,7 @@ package pincode
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -40,10 +41,17 @@ type Client struct {
 
 // NewClient constructs a pincode lookup client.
 func NewClient() *Client {
+	// postalpincode.in rejects Go's default HTTP/2 requests; force HTTP/1.1.
+	transport := &http.Transport{
+		TLSClientConfig:       &tls.Config{},
+		ForceAttemptHTTP2:     false,
+		ResponseHeaderTimeout: 8 * time.Second,
+	}
 	return &Client{
 		baseURL: defaultAPI,
 		http: &http.Client{
-			Timeout: 8 * time.Second,
+			Timeout:   8 * time.Second,
+			Transport: transport,
 		},
 	}
 }
@@ -64,6 +72,8 @@ func (c *Client) Lookup(ctx context.Context, pincode string) (*Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Set("User-Agent", "AVArtWorks/1.0 (+https://avartworks.in)")
+	req.Header.Set("Accept", "application/json")
 
 	res, err := c.http.Do(req)
 	if err != nil {
