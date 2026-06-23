@@ -1,24 +1,36 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../../lib/api";
+import { api, ApiError } from "../../lib/api";
 import { Spinner } from "../../components/Spinner";
-
-const empty = { line1: "", line2: "", city: "", state: "", pincode: "", is_default: false };
+import { AddressForm, emptyAddress } from "../../components/AddressForm";
 
 export function Addresses() {
   const qc = useQueryClient();
-  const [form, setForm] = useState(empty);
+  const [form, setForm] = useState({ ...emptyAddress, is_default: false });
+  const [error, setError] = useState("");
   const { data, isLoading } = useQuery({
     queryKey: ["addresses"],
     queryFn: () => api.get("/v1/users/me/addresses"),
   });
 
   const add = useMutation({
-    mutationFn: () => api.post("/v1/users/me/addresses", form),
+    mutationFn: () =>
+      api.post("/v1/users/me/addresses", {
+        line1: form.line1,
+        line2: form.line2 ?? "",
+        locality: form.locality,
+        city: form.city,
+        state: form.state,
+        pincode: form.pincode,
+        country: "India",
+        is_default: form.is_default,
+      }),
     onSuccess: () => {
-      setForm(empty);
+      setForm({ ...emptyAddress, is_default: false });
+      setError("");
       qc.invalidateQueries({ queryKey: ["addresses"] });
     },
+    onError: (e) => setError(e instanceof ApiError ? e.message : "Could not save address."),
   });
   const remove = useMutation({
     mutationFn: (id) => api.del(`/v1/users/me/addresses/${id}`),
@@ -45,6 +57,7 @@ export function Addresses() {
                   {a.is_default && <span className="pill-muted">Default</span>}
                 </div>
                 {a.line2 && <p className="text-stone-600">{a.line2}</p>}
+                {a.locality && <p className="text-stone-600">{a.locality}</p>}
                 <p className="text-stone-600">{a.city}, {a.state} {a.pincode}</p>
                 <p className="text-stone-400">{a.country}</p>
                 <button className="mt-3 block text-xs font-medium text-red-500 transition hover:text-red-600 hover:underline" onClick={() => remove.mutate(a.id)}>
@@ -60,26 +73,23 @@ export function Addresses() {
         className="card p-6"
         onSubmit={(e) => {
           e.preventDefault();
+          setError("");
+          if (!form.line1.trim() || !form.locality || !form.city || !form.state || form.pincode.length !== 6) {
+            setError("Please complete and verify your address.");
+            return;
+          }
           add.mutate();
         }}
       >
         <h3 className="font-display text-lg font-bold text-ink">Add address</h3>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className="label">Address line 1</label>
-            <input className="input" required value={form.line1} onChange={(e) => setForm({ ...form, line1: e.target.value })} />
-          </div>
-          <div><label className="label">City</label>
-            <input className="input" required value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
-          <div><label className="label">State</label>
-            <input className="input" required value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} /></div>
-          <div><label className="label">Pincode</label>
-            <input className="input" required value={form.pincode} onChange={(e) => setForm({ ...form, pincode: e.target.value })} /></div>
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={form.is_default} onChange={(e) => setForm({ ...form, is_default: e.target.checked })} />
-            Set as default
-          </label>
+        {error && <p className="mt-3 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">{error}</p>}
+        <div className="mt-4">
+          <AddressForm value={form} onChange={setForm} idPrefix="saved" />
         </div>
+        <label className="mt-4 flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={form.is_default} onChange={(e) => setForm({ ...form, is_default: e.target.checked })} />
+          Set as default
+        </label>
         <button className="btn-primary mt-4 px-6 py-2" disabled={add.isPending}>Add address</button>
       </form>
     </div>

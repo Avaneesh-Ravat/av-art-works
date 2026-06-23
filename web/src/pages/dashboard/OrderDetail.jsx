@@ -144,6 +144,7 @@ export function OrderDetail() {
             <div className="mt-2 text-sm leading-relaxed text-stone-700">
               {addr.line1 && <p>{addr.line1}</p>}
               {addr.line2 && <p>{addr.line2}</p>}
+              {addr.locality && <p>{addr.locality}</p>}
               <p>
                 {[addr.city, addr.state, addr.pincode].filter(Boolean).join(", ")}
               </p>

@@ -195,7 +195,7 @@ func (h *Handler) checkout(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, domain.ErrEmptyCart):
 			httpx.Error(w, http.StatusBadRequest, "empty_cart", "your cart is empty")
 		case errors.Is(err, domain.ErrBadAddress):
-			httpx.Error(w, http.StatusBadRequest, "bad_address", "shipping address requires line1, city and pincode")
+			httpx.Error(w, http.StatusBadRequest, "bad_address", "shipping address is incomplete or does not match pincode")
 		case errors.Is(err, domain.ErrOutOfStock):
 			httpx.Error(w, http.StatusConflict, "out_of_stock", "one or more items are out of stock")
 		case errors.Is(err, domain.ErrProductInvalid):

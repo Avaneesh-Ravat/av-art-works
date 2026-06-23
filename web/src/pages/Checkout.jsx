@@ -5,14 +5,16 @@ import { api, ApiError } from "../lib/api";
 import { useCart, useSiteProfileContent } from "../lib/hooks";
 import { formatINR } from "../lib/format";
 import { Spinner } from "../components/Spinner";
+import { AddressForm, emptyAddress } from "../components/AddressForm";
 import { MailIcon, MapPinIcon, ShieldIcon, WhatsappIcon } from "../components/icons";
 
 function sameAddress(a, b) {
   return (
     a.line1 === b.line1 &&
     (a.line2 ?? "") === (b.line2 ?? "") &&
+    (a.locality ?? "") === (b.locality ?? "") &&
     a.city === b.city &&
-    (a.state ?? "") === (b.state ?? "") &&
+    a.state === b.state &&
     a.pincode === b.pincode
   );
 }
@@ -22,8 +24,9 @@ async function saveAddressIfNew(addr, savedItems) {
   await api.post("/v1/users/me/addresses", {
     line1: addr.line1,
     line2: addr.line2 ?? "",
+    locality: addr.locality,
     city: addr.city,
-    state: addr.state ?? "",
+    state: addr.state,
     pincode: addr.pincode,
     country: "India",
     is_default: !savedItems?.length,
@@ -41,25 +44,34 @@ export function Checkout() {
     queryFn: () => api.get("/v1/users/me/addresses"),
   });
 
-  const [addr, setAddr] = useState({ line1: "", line2: "", city: "", state: "", pincode: "" });
-  // "manual" = we share UPI/bank details over WhatsApp/email; "cod" = cash on delivery.
-  // Both create a pending order; online (Razorpay) is intentionally disabled until configured.
+  const [addr, setAddr] = useState(emptyAddress);
   const [method, setMethod] = useState("manual");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
   const applySaved = (a) =>
-    setAddr({ line1: a.line1, line2: a.line2 ?? "", city: a.city, state: a.state, pincode: a.pincode });
+    setAddr({
+      line1: a.line1,
+      line2: a.line2 ?? "",
+      locality: a.locality ?? "",
+      city: a.city,
+      state: a.state,
+      pincode: a.pincode,
+    });
 
   const placeOrder = async (e) => {
     e.preventDefault();
     setError("");
+    if (!addr.line1.trim() || !addr.locality || !addr.city || !addr.state || addr.pincode.length !== 6) {
+      setError("Please complete and verify your shipping address.");
+      return;
+    }
     setBusy(true);
     try {
-      const order = await api.post("/v1/orders", { shipping_address: { ...addr, country: "India" } });
+      const order = await api.post("/v1/orders", {
+        shipping_address: { ...addr, country: "India" },
+      });
 
-      // Manual (UPI/bank via WhatsApp/email) and COD both record a pending payment.
-      // No online gateway call until Razorpay is configured.
       await api.post("/v1/payments", {
         order_id: order.id,
         method: "cod",
@@ -119,34 +131,15 @@ export function Checkout() {
                       onClick={() => applySaved(a)}
                     >
                       <MapPinIcon size={14} />
-                      {a.line1}, {a.city}
+                      {a.line1}, {a.locality || a.city}
                     </button>
                   ))}
                 </div>
               </div>
             ) : null}
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <label className="label">Address line 1</label>
-                <input className="input" required value={addr.line1} onChange={(e) => setAddr({ ...addr, line1: e.target.value })} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className="label">Address line 2</label>
-                <input className="input" value={addr.line2} onChange={(e) => setAddr({ ...addr, line2: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">City</label>
-                <input className="input" required value={addr.city} onChange={(e) => setAddr({ ...addr, city: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">State</label>
-                <input className="input" required value={addr.state} onChange={(e) => setAddr({ ...addr, state: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Pincode</label>
-                <input className="input" required value={addr.pincode} onChange={(e) => setAddr({ ...addr, pincode: e.target.value })} />
-              </div>
+            <div className="mt-5">
+              <AddressForm value={addr} onChange={setAddr} idPrefix="checkout" />
             </div>
           </section>
 

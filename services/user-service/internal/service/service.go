@@ -7,6 +7,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"log/slog"
 	"strings"
 	"time"
@@ -15,21 +17,23 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"avartworks/pkg/auth"
+	"avartworks/pkg/pincode"
 	"avartworks/services/user-service/internal/domain"
 	"avartworks/services/user-service/internal/repository"
 )
 
 // Service holds dependencies for user business logic.
 type Service struct {
-	repo   *repository.Repository
-	tokens *auth.Manager
-	rdb    *redis.Client
-	log    *slog.Logger
+	repo    *repository.Repository
+	tokens  *auth.Manager
+	rdb     *redis.Client
+	pincode *pincode.Client
+	log     *slog.Logger
 }
 
 // New constructs the user Service.
 func New(repo *repository.Repository, tokens *auth.Manager, rdb *redis.Client, log *slog.Logger) *Service {
-	return &Service{repo: repo, tokens: tokens, rdb: rdb, log: log}
+	return &Service{repo: repo, tokens: tokens, rdb: rdb, pincode: pincode.NewClient(), log: log}
 }
 
 // TokenPair bundles an access and refresh token.
@@ -167,10 +171,36 @@ func (s *Service) ListUsers(ctx context.Context, limit, offset int) ([]domain.Us
 	return s.repo.ListUsers(ctx, limit, offset)
 }
 
-// AddAddress adds a shipping address.
+// LookupPincode returns city, state, and localities for an Indian pincode.
+func (s *Service) LookupPincode(ctx context.Context, pincodeValue string) (*pincode.Result, error) {
+	pincodeValue = strings.TrimSpace(pincodeValue)
+	if !pincode.ValidFormat(pincodeValue) {
+		return nil, pincode.ErrInvalidFormat
+	}
+
+	cacheKey := "pincode:" + pincodeValue
+	if cached, err := s.rdb.Get(ctx, cacheKey).Bytes(); err == nil {
+		var result pincode.Result
+		if json.Unmarshal(cached, &result) == nil {
+			return &result, nil
+		}
+	}
+
+	result, err := s.pincode.Lookup(ctx, pincodeValue)
+	if err != nil {
+		return nil, err
+	}
+
+	if encoded, err := json.Marshal(result); err == nil {
+		_ = s.rdb.Set(ctx, cacheKey, encoded, 30*24*time.Hour).Err()
+	}
+	return result, nil
+}
+
+// AddAddress adds a shipping address after pincode verification.
 func (s *Service) AddAddress(ctx context.Context, a *domain.Address) (*domain.Address, error) {
-	if a.Country == "" {
-		a.Country = "India"
+	if err := s.validateAddress(ctx, a); err != nil {
+		return nil, err
 	}
 	return s.repo.CreateAddress(ctx, a)
 }
@@ -212,6 +242,35 @@ func (s *Service) EnsureAdmin(ctx context.Context, email, password string) error
 
 func refreshKey(jti string) string { return "refresh:" + jti }
 func resetKey(token string) string { return "reset:" + token }
+
+func (s *Service) validateAddress(ctx context.Context, a *domain.Address) error {
+	if strings.TrimSpace(a.Line1) == "" || strings.TrimSpace(a.Locality) == "" ||
+		strings.TrimSpace(a.City) == "" || strings.TrimSpace(a.State) == "" ||
+		strings.TrimSpace(a.Pincode) == "" {
+		return domain.ErrInvalidAddress
+	}
+	if a.Country == "" {
+		a.Country = "India"
+	}
+	if a.Country != "India" {
+		return domain.ErrInvalidAddress
+	}
+
+	result, err := s.LookupPincode(ctx, a.Pincode)
+	if err != nil {
+		if errors.Is(err, pincode.ErrInvalidFormat) || errors.Is(err, pincode.ErrNotFound) {
+			return domain.ErrInvalidAddress
+		}
+		return err
+	}
+	if !pincode.Matches(result, a.City, a.State, a.Locality) {
+		return domain.ErrInvalidAddress
+	}
+	// Store canonical values from the postal API.
+	a.City = result.City
+	a.State = result.State
+	return nil
+}
 
 func randomToken() string {
 	b := make([]byte, 32)

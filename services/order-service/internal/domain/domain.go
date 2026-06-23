@@ -55,12 +55,13 @@ type Cart struct {
 
 // Address is a shipping address snapshot stored on the order.
 type Address struct {
-	Line1   string `json:"line1"`
-	Line2   string `json:"line2,omitempty"`
-	City    string `json:"city"`
-	State   string `json:"state"`
-	Pincode string `json:"pincode"`
-	Country string `json:"country"`
+	Line1    string `json:"line1"`
+	Line2    string `json:"line2,omitempty"`
+	Locality string `json:"locality"`
+	City     string `json:"city"`
+	State    string `json:"state"`
+	Pincode  string `json:"pincode"`
+	Country  string `json:"country"`
 }
 
 // OrderItem is a purchased line with price/title snapshots.

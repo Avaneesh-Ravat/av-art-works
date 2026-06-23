@@ -50,6 +50,7 @@ func Handler(opts Options) (http.Handler, error) {
 	tokens := opts.Tokens
 	routes := []route{
 		{"/api/v1/auth", b.User, false},
+		{"/api/v1/pincode", b.User, false},
 		{"/api/v1/users", b.User, true},
 		{"/api/v1/admin/users", b.User, true},
 

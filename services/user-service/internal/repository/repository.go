@@ -126,10 +126,10 @@ func (r *Repository) CreateAddress(ctx context.Context, a *domain.Address) (*dom
 		}
 	}
 	const q = `
-		INSERT INTO addresses (user_id, line1, line2, city, state, pincode, country, is_default)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+		INSERT INTO addresses (user_id, line1, line2, locality, city, state, pincode, country, is_default)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 		RETURNING id, created_at`
-	err = tx.QueryRow(ctx, q, a.UserID, a.Line1, a.Line2, a.City, a.State, a.Pincode, a.Country, a.IsDefault).
+	err = tx.QueryRow(ctx, q, a.UserID, a.Line1, a.Line2, a.Locality, a.City, a.State, a.Pincode, a.Country, a.IsDefault).
 		Scan(&a.ID, &a.CreatedAt)
 	if err != nil {
 		return nil, err
@@ -140,7 +140,7 @@ func (r *Repository) CreateAddress(ctx context.Context, a *domain.Address) (*dom
 // ListAddresses returns a user's addresses.
 func (r *Repository) ListAddresses(ctx context.Context, userID string) ([]domain.Address, error) {
 	const q = `
-		SELECT id, user_id, line1, COALESCE(line2,''), city, state, pincode, country, is_default, created_at
+		SELECT id, user_id, line1, COALESCE(line2,''), COALESCE(locality,''), city, state, pincode, country, is_default, created_at
 		FROM addresses WHERE user_id=$1 ORDER BY is_default DESC, created_at DESC`
 	rows, err := r.pool.Query(ctx, q, userID)
 	if err != nil {
@@ -150,7 +150,7 @@ func (r *Repository) ListAddresses(ctx context.Context, userID string) ([]domain
 	var out []domain.Address
 	for rows.Next() {
 		var a domain.Address
-		if err := rows.Scan(&a.ID, &a.UserID, &a.Line1, &a.Line2, &a.City, &a.State, &a.Pincode, &a.Country, &a.IsDefault, &a.CreatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.UserID, &a.Line1, &a.Line2, &a.Locality, &a.City, &a.State, &a.Pincode, &a.Country, &a.IsDefault, &a.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, a)

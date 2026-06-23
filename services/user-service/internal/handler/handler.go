@@ -10,6 +10,7 @@ import (
 
 	"avartworks/pkg/auth"
 	"avartworks/pkg/httpx"
+	"avartworks/pkg/pincode"
 	"avartworks/services/user-service/docs"
 	"avartworks/services/user-service/internal/domain"
 	"avartworks/services/user-service/internal/service"
@@ -44,6 +45,7 @@ func (h *Handler) Routes(corsOrigins []string) http.Handler {
 		r.Post("/auth/logout", h.logout)
 		r.Post("/auth/forgot-password", h.forgotPassword)
 		r.Post("/auth/reset-password", h.resetPassword)
+		r.Get("/pincode/{pincode}", h.lookupPincode)
 
 		// Authenticated routes.
 		r.Group(func(r chi.Router) {
@@ -99,6 +101,7 @@ type updateProfileReq struct {
 type addressReq struct {
 	Line1     string `json:"line1" validate:"required"`
 	Line2     string `json:"line2"`
+	Locality  string `json:"locality" validate:"required"`
 	City      string `json:"city" validate:"required"`
 	State     string `json:"state" validate:"required"`
 	Pincode   string `json:"pincode" validate:"required"`
@@ -224,6 +227,23 @@ func (h *Handler) updateMe(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, u)
 }
 
+func (h *Handler) lookupPincode(w http.ResponseWriter, r *http.Request) {
+	result, err := h.svc.LookupPincode(r.Context(), chi.URLParam(r, "pincode"))
+	if err != nil {
+		if errors.Is(err, pincode.ErrInvalidFormat) {
+			httpx.Error(w, http.StatusBadRequest, "invalid_pincode", "enter a valid 6-digit pincode")
+			return
+		}
+		if errors.Is(err, pincode.ErrNotFound) {
+			httpx.Error(w, http.StatusNotFound, "pincode_not_found", "pincode not found")
+			return
+		}
+		httpx.Error(w, http.StatusBadGateway, "lookup_failed", "could not look up pincode")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, result)
+}
+
 func (h *Handler) listAddresses(w http.ResponseWriter, r *http.Request) {
 	claims := httpx.ClaimsFrom(r.Context())
 	addrs, err := h.svc.ListAddresses(r.Context(), claims.UserID)
@@ -245,6 +265,7 @@ func (h *Handler) addAddress(w http.ResponseWriter, r *http.Request) {
 		UserID:    claims.UserID,
 		Line1:     req.Line1,
 		Line2:     req.Line2,
+		Locality:  req.Locality,
 		City:      req.City,
 		State:     req.State,
 		Pincode:   req.Pincode,
@@ -253,6 +274,10 @@ func (h *Handler) addAddress(w http.ResponseWriter, r *http.Request) {
 	}
 	created, err := h.svc.AddAddress(r.Context(), a)
 	if err != nil {
+		if errors.Is(err, domain.ErrInvalidAddress) {
+			httpx.Error(w, http.StatusBadRequest, "invalid_address", "address does not match pincode")
+			return
+		}
 		httpx.Error(w, http.StatusInternalServerError, "internal", "could not add address")
 		return
 	}

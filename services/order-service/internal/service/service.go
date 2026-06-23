@@ -5,8 +5,11 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log/slog"
+	"strings"
 
+	"avartworks/pkg/pincode"
 	"avartworks/services/order-service/internal/client"
 	"avartworks/services/order-service/internal/domain"
 	"avartworks/services/order-service/internal/repository"
@@ -16,12 +19,13 @@ import (
 type Service struct {
 	repo    *repository.Repository
 	catalog *client.Catalog
+	pincode *pincode.Client
 	log     *slog.Logger
 }
 
 // New constructs the order Service.
 func New(repo *repository.Repository, catalog *client.Catalog, log *slog.Logger) *Service {
-	return &Service{repo: repo, catalog: catalog, log: log}
+	return &Service{repo: repo, catalog: catalog, pincode: pincode.NewClient(), log: log}
 }
 
 // GetCart returns the user's cart enriched with live product data.
@@ -161,11 +165,8 @@ func (s *Service) Checkout(ctx context.Context, userID string, addr domain.Addre
 	if len(raw) == 0 {
 		return nil, domain.ErrEmptyCart
 	}
-	if addr.Line1 == "" || addr.City == "" || addr.Pincode == "" {
-		return nil, domain.ErrBadAddress
-	}
-	if addr.Country == "" {
-		addr.Country = "India"
+	if err := s.validateAddress(ctx, &addr); err != nil {
+		return nil, err
 	}
 
 	order := &domain.Order{UserID: userID, Address: addr}
@@ -322,4 +323,32 @@ func (s *Service) ListWishlist(ctx context.Context, userID string) ([]domain.Wis
 		})
 	}
 	return out, nil
+}
+
+func (s *Service) validateAddress(ctx context.Context, addr *domain.Address) error {
+	if strings.TrimSpace(addr.Line1) == "" || strings.TrimSpace(addr.Locality) == "" ||
+		strings.TrimSpace(addr.City) == "" || strings.TrimSpace(addr.State) == "" ||
+		strings.TrimSpace(addr.Pincode) == "" {
+		return domain.ErrBadAddress
+	}
+	if addr.Country == "" {
+		addr.Country = "India"
+	}
+	if addr.Country != "India" {
+		return domain.ErrBadAddress
+	}
+
+	result, err := s.pincode.Lookup(ctx, addr.Pincode)
+	if err != nil {
+		if errors.Is(err, pincode.ErrInvalidFormat) || errors.Is(err, pincode.ErrNotFound) {
+			return domain.ErrBadAddress
+		}
+		return err
+	}
+	if !pincode.Matches(result, addr.City, addr.State, addr.Locality) {
+		return domain.ErrBadAddress
+	}
+	addr.City = result.City
+	addr.State = result.State
+	return nil
 }

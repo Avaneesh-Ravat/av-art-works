@@ -8,10 +8,11 @@ import (
 
 // Domain-level errors mapped to HTTP statuses in the handler layer.
 var (
-	ErrNotFound     = errors.New("not found")
-	ErrEmailExists  = errors.New("email already registered")
-	ErrInvalidCreds = errors.New("invalid credentials")
-	ErrInvalidToken = errors.New("invalid or expired token")
+	ErrNotFound        = errors.New("not found")
+	ErrEmailExists     = errors.New("email already registered")
+	ErrInvalidCreds    = errors.New("invalid credentials")
+	ErrInvalidToken    = errors.New("invalid or expired token")
+	ErrInvalidAddress  = errors.New("invalid address")
 )
 
 // User is a registered account.
@@ -32,6 +33,7 @@ type Address struct {
 	UserID    string    `json:"user_id"`
 	Line1     string    `json:"line1"`
 	Line2     string    `json:"line2,omitempty"`
+	Locality  string    `json:"locality"`
 	City      string    `json:"city"`
 	State     string    `json:"state"`
 	Pincode   string    `json:"pincode"`
